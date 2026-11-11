@@ -118,6 +118,19 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .sec-title h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
 .sec-title span { font-size: 13px; color: var(--muted); }
 .owe-t { color: var(--bad); }
+.row.pay { background: var(--good-soft); }
+.row.pay .row-title { color: var(--good); }
+.ck { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; color: var(--good); flex: none; }
+.settled { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; background: var(--accent); color: var(--accent-ink); padding: 14px 16px; cursor: pointer; font: inherit; }
+.settled .ck { width: 26px; height: 26px; margin: 0; color: var(--accent-ink); }
+.settled b { font-family: var(--font-display); font-size: 17px; }
+.settled .meta { color: inherit; opacity: .9; }
+.settled > div { flex: 1; min-width: 0; }
+.settled .chev { width: 20px; height: 20px; flex: none; transition: transform .15s; }
+.settled[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.list.old { background: color-mix(in srgb, var(--surface) 92%, var(--muted)); }
+.hist summary { cursor: pointer; font-weight: 600; }
+.act .row { align-items: flex-start; }
 .chip-bad { background: var(--bad-soft); color: var(--bad); }
 .chip-good { background: var(--good-soft); color: var(--good); }
 
@@ -199,9 +212,6 @@ details.person .list { background: var(--bg); }
 <div id="shell">
   <header class="top">
     <div class="brand"><h1>Cuentas Claras</h1><span class="tag">Prototipo</span><button class="gear" id="gear" data-act="tab" data-tab="ajustes" aria-label="Ajustes" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/></svg></button></div>
-    <label class="month" id="monthWrap">Mes en que vence
-      <select id="monthSel"></select>
-    </label>
   </header>
   <div id="demoBanner" hidden></div>
   <main id="view"></main>
@@ -700,6 +710,51 @@ details.person .list { background: var(--bg); }
     return out;
   }
 
+  // Historial por "épocas": cada vez que un pago deja a todos en cero, todo lo anterior se cierra.
+  function groupEpochs(g) {
+    var all = g.expenses.map(function (e) { return { t: 'e', x: e }; }).concat((g.payments || []).map(function (p) { return { t: 'p', x: p }; }))
+      .sort(function (a, b) { return (a.x.ts || 0) - (b.x.ts || 0); });
+    var epochs = [], cur = [], ex = [], pa = [], sawExpense = false;
+    all.forEach(function (it) {
+      cur.push(it);
+      if (it.t === 'e') { ex.push(it.x); sawExpense = true; } else pa.push(it.x);
+      if (it.t === 'p' && sawExpense) {
+        var nets = groupBalances({ members: g.members, expenses: ex, payments: pa }).nets;
+        if (Object.keys(nets).every(function (k) { return nets[k] === 0; })) {
+          epochs.push({ items: cur, closer: it.x }); cur = [];
+        }
+      }
+    });
+    epochs.push({ items: cur, closer: null });
+    var byDate = function (a, b) { return (b.x.date || '').localeCompare(a.x.date || '') || (b.x.ts || 0) - (a.x.ts || 0); };
+    epochs.forEach(function (ep) {
+      // el pago que cierra va en la franja, no en la lista
+      ep.items = ep.items.filter(function (it) { return !(ep.closer && it.t === 'p' && it.x.id === ep.closer.id); }).sort(byDate);
+    });
+    return epochs.reverse(); // la primera es la actual
+  }
+  function myShareCents(g, e, userId) {
+    var sh = splitCents(cents(e.amount), e.splitAmong).find(function (x) { return x.id === userId; });
+    return sh ? sh.cents : 0;
+  }
+  // gastos de grupo que le tocan o pagó un usuario, con su parte
+  function groupRowsFor(state, userId) {
+    var rows = [];
+    (state.groups || []).forEach(function (g) {
+      if (g.members.indexOf(userId) < 0) return;
+      g.expenses.forEach(function (e) {
+        var mine = e.splitAmong.indexOf(userId) >= 0, paid = e.paidBy === userId;
+        if (!mine && !paid) return;
+        rows.push({
+          source: 'group', groupId: g.id, expId: e.id, issuer: 'grupo', label: 'Grupo ' + g.name, groupName: g.name,
+          desc: e.desc, descRaw: e.desc, kind: 'grupo', amount: myShareCents(g, e, userId) / 100, totalAmount: e.amount, currency: 'ARS',
+          others: e.splitAmong.filter(function (x) { return x !== userId; }), paidBy: e.paidBy, date: e.date, status: 'activo', ts: e.ts || 0
+        });
+      });
+    });
+    return rows;
+  }
+
   /* ---------- datos de ejemplo (inventados) ---------- */
   function demoState() {
     var s = emptyState(); s.demo = true;
@@ -741,7 +796,30 @@ details.person .list { background: var(--bg); }
         { id: 'ge2', desc: 'Cerveza y fernet', amount: 21000, paidBy: 'u-pepito', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-11-03', ts: 2 },
         { id: 'ge3', desc: 'Nafta', amount: 36000, paidBy: 'u-juancito', splitAmong: ['u-fercho', 'u-pepito', 'u-juancito'], date: '2026-11-04', ts: 3 }
       ],
-      payments: [{ id: 'gp1', from: 'u-pepito', to: 'u-fercho', amount: 5000, date: '2026-11-05', ts: 4 }]
+      payments: [{ id: 'gp1', from: 'u-pepito', to: 'u-fercho', amount: 5000, date: '2026-11-05', ts: 4 }],
+      activity: [
+        { id: 'ga1', ts: Date.UTC(2026, 10, 3, 14, 0), who: 'u-fercho', text: 'creó el grupo' },
+        { id: 'ga2', ts: Date.UTC(2026, 10, 3, 14, 5), who: 'u-fercho', text: 'cargó "Super del primer día" por $ 48.600' },
+        { id: 'ga3', ts: Date.UTC(2026, 10, 3, 21, 30), who: 'u-pepito', text: 'cargó "Cerveza y fernet" por $ 21.000' },
+        { id: 'ga4', ts: Date.UTC(2026, 10, 4, 18, 10), who: 'u-juancito', text: 'cargó "Nafta" por $ 36.000' },
+        { id: 'ga5', ts: Date.UTC(2026, 10, 5, 15, 45), who: 'u-pepito', text: 'registró un pago de $ 5.000 a Fercho' }
+      ]
+    }, {
+      id: 'g-hogar', name: 'Hogar (ejemplo)', createdBy: 'u-fercho', members: ['u-fercho', 'u-pepito'], pending: [],
+      expenses: [
+        { id: 'he1', desc: 'Alquiler de octubre', amount: 300000, paidBy: 'u-fercho', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-10-05', ts: 10 },
+        { id: 'he2', desc: 'Luz', amount: 40000, paidBy: 'u-pepito', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-10-12', ts: 11 },
+        { id: 'he4', desc: 'Super de la semana', amount: 52000, paidBy: 'u-pepito', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-11-08', ts: 13 },
+        { id: 'he5', desc: 'Internet', amount: 30000, paidBy: 'u-fercho', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-11-09', ts: 14 }
+      ],
+      payments: [
+        { id: 'hp1', from: 'u-pepito', to: 'u-fercho', amount: 130000, date: '2026-10-20', ts: 12 }
+      ],
+      activity: [
+        { id: 'ha1', ts: Date.UTC(2026, 9, 5, 12, 0), who: 'u-fercho', text: 'creó el grupo' },
+        { id: 'ha2', ts: Date.UTC(2026, 9, 20, 12, 0), who: 'u-pepito', text: 'registró que Pepito le pagó $ 130.000,00 a Fercho' },
+        { id: 'ha3', ts: Date.UTC(2026, 10, 9, 12, 0), who: 'u-fercho', text: 'cargó "Internet" por $ 30.000,00, pagó Fercho, entre Fercho, Pepito' }
+      ]
     }];
     return s;
   }
@@ -768,6 +846,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
+    groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
     parseStatement: parseStatement, netPairs: netPairs, emptyState: emptyState, planImport: planImport,
@@ -790,7 +869,7 @@ details.person .list { background: var(--bg); }
 
   /* ---------- estado y guardado ---------- */
   var S = loadState();
-  var ui = { group: null, tab: 'inicio', month: null, mode: 'pdf', reviews: [], filter: 'todos', q: '', mdraft: null, busy: 0 };
+  var ui = { open: {}, hist: null, group: null, tab: 'inicio', month: null, mode: 'pdf', reviews: [], filter: 'todos', q: '', mdraft: null, busy: 0 };
   var rowIndex = {};
 
   function loadState() {
@@ -886,8 +965,7 @@ details.person .list { background: var(--bg); }
       ui.month = withStmt[0] || C.nowYM();
       if (months.indexOf(ui.month) < 0) months.unshift(ui.month);
     }
-    $('#monthSel').innerHTML = months.map(function (m) { return '<option value="' + m + '"' + (m === ui.month ? ' selected' : '') + '>' + cap(C.monthLabel(m)) + '</option>'; }).join('');
-    $('#monthWrap').hidden = (ui.tab === 'contactos' || ui.tab === 'ajustes' || ui.tab === 'cargar' || ui.tab === 'grupos');
+    if (ui.hist && months.indexOf(ui.hist) < 0) ui.hist = null;
     // aviso demo
     var db = $('#demoBanner');
     if (S.demo) {
@@ -981,30 +1059,40 @@ details.person .list { background: var(--bg); }
   function filterRows(rows) {
     var q = C.normDesc(ui.q || '');
     return rows.filter(function (r) {
-      if (ui.filter === 'divididos' && !r.splitWith) return false;
+      var isG = r.source === 'group';
+      if (ui.filter === 'divididos' && !(isG ? r.others.length : r.splitWith)) return false;
       if (ui.filter === 'cuotas' && !r.total) return false;
       if (ui.filter === 'sindesc' && !(r.source === 'pdf' && !r.custom)) return false;
-      if (q && C.normDesc(r.desc + ' ' + r.descRaw).indexOf(q) < 0) return false;
+      if (q && C.normDesc(r.desc + ' ' + r.descRaw + ' ' + (r.groupName || '')).indexOf(q) < 0) return false;
       return true;
     });
   }
+  function groupExpRowHTML(r) {
+    var chips = '<span class="chip chip-split">' + (r.others.length ? '÷ ' + esc(names(r.others)) : 'Sin dividir') + '</span>';
+    return '<button class="row" data-act="g-open" data-id="' + esc(r.groupId) + '"><div class="row-main"><div class="row-title">' + esc(r.desc) + '</div><div class="meta">Pagó ' + esc(C.userName(r.paidBy)) + ' · ' + fdate(r.date) + '</div><div class="chips">' + chips + '</div></div><div class="row-amt">' + money(r.amount, 'ARS') + '<span class="usd">tu parte de ' + money(r.totalAmount, 'ARS') + '</span></div></button>';
+  }
   function glistHTML() {
     rowIndex = {};
-    var rows = filterRows(C.entriesForMonth(S, ui.month));
-    if (!rows.length) return '<section class="card"><p class="muted">No hay gastos con ese filtro en ' + esc(C.monthLabel(ui.month)) + '.</p></section>';
+    var hm = ui.hist || ui.month;
+    var rows = filterRows(C.entriesForMonth(S, hm).concat(C.groupRowsFor(S, S.whoami)));
+    if (!rows.length) return '<section class="card"><p class="muted">No hay gastos con ese filtro.</p></section>';
     var groups = {};
     rows.forEach(function (r) { (groups[r.label] = groups[r.label] || []).push(r); });
     return Object.keys(groups).map(function (g) {
       var list = groups[g].sort(function (a, b) { return (b.amount - a.amount); });
       var sum = list.reduce(function (a, r) { if (r.status !== 'anulado' && r.currency !== 'USD') a += r.amount; return a; }, 0);
-      return '<section class="card flat"><div class="group-h"><b>' + esc(g) + '</b><span>' + list.length + ' · ' + money(sum, 'ARS') + '</span></div><div class="list">' + list.map(rowHTML).join('') + '</div></section>';
+      return '<section class="card flat"><div class="group-h"><b>' + esc(g) + '</b><span>' + list.length + ' · ' + money(sum, 'ARS') + '</span></div><div class="list">' + list.map(function (r) { return r.source === 'group' ? groupExpRowHTML(r) : rowHTML(r); }).join('') + '</div></section>';
     }).join('');
+  }
+  function histCard() {
+    var months = C.monthsAvailable(S);
+    return '<details class="card hist"' + (ui.hist ? ' open' : '') + '><summary>Historial: ver gastos de tarjeta de otro mes</summary><label class="f">Mes<select id="monthSel">' + months.map(function (m) { return '<option value="' + m + '"' + (m === (ui.hist || ui.month) ? ' selected' : '') + '>' + cap(C.monthLabel(m)) + '</option>'; }).join('') + '</select></label></details>';
   }
   function viewGastos() {
     var f = [['todos', 'Todos'], ['divididos', 'Divididos'], ['cuotas', 'En cuotas'], ['sindesc', 'Sin descripción']];
     return '<section class="card"><label class="f">Buscar<input type="text" id="gq" value="' + esc(ui.q) + '" placeholder="Comercio o descripción"></label>' +
       '<div class="filters">' + f.map(function (x) { return '<button class="fchip" data-act="filter" data-f="' + x[0] + '" aria-pressed="' + (ui.filter === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></section>' +
-      '<div id="glist" style="display:flex;flex-direction:column;gap:16px">' + glistHTML() + '</div>';
+      '<div id="glist" style="display:flex;flex-direction:column;gap:16px">' + glistHTML() + '</div>' + histCard();
   }
 
   /* ----- Contactos ----- */
@@ -1075,9 +1163,9 @@ details.person .list { background: var(--bg); }
       return h + '</section>';
     }
     var b = C.groupBalances(g), me = b.nets[S.whoami], sug = C.settle(b.nets);
-    h += '<div class="btns"><button class="btn ghost small" data-act="g-back">← ' + (ui.from === 'inicio' ? 'Inicio' : 'Mis grupos') + '</button></div>';
+    h += '<div class="btns"><button class="btn ghost small" data-act="g-back">← Inicio</button></div>';
     h += '<section class="hero' + (me < 0 ? ' debt' : '') + '"><small>' + esc(g.name) + '</small>' + netLine(me / 100).replace('<small>', '<small style="font-size:15px;opacity:1">') + '</section>';
-    h += '<div class="btns"><button class="btn" data-act="g-exp">Cargar gasto</button><button class="btn ghost" data-act="g-pay">Registrar pago</button><button class="btn ghost" data-act="g-inv">Invitar</button></div>';
+    h += '<div class="btns"><button class="btn" data-act="g-exp">Cargar gasto</button><button class="btn ghost" data-act="g-pay">Registrar pago</button><button class="btn ghost" data-act="g-act">Actividad</button><button class="btn ghost" data-act="g-inv">Invitar</button></div>';
     h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Quién le paga a quién</h2><span>para quedar a mano</span></div>';
     if (!sug.length) h += '<p class="muted small" style="padding:0 16px 16px">Está todo saldado.</p>';
     else h += '<div class="list">' + sug.map(function (s, i) {
@@ -1088,15 +1176,38 @@ details.person .list { background: var(--bg); }
       var x = b.by[m];
       return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(C.userName(m)) + (m === S.whoami ? ' (yo)' : '') + '</div><div class="meta">puso ' + money(x.paid, 'ARS') + ' · le tocó ' + money(x.owed, 'ARS') + '</div></div><div class="row-amt' + (x.net < 0 ? ' owe' : '') + '">' + (x.net > 0 ? '+' : x.net < 0 ? '−' : '') + money(Math.abs(x.net), 'ARS') + '</div></div>';
     }).join('') + (g.pending && g.pending.length ? g.pending.map(function (e) { return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(e) + '</div><div class="meta">Invitado · todavía no se registró</div></div></div>'; }).join('') : '') + '</div></section>';
-    var items = g.expenses.map(function (e) { return { t: 'e', x: e }; }).concat((g.payments || []).map(function (p) { return { t: 'p', x: p }; }))
-      .sort(function (p, q) { return (q.x.date || '').localeCompare(p.x.date || '') || (q.x.ts || 0) - (p.x.ts || 0); });
-    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Todo lo cargado</h2><span>' + items.length + '</span></div>';
-    h += items.length ? '<div class="list">' + items.map(function (it) {
-      if (it.t === 'p') return '<button class="row" data-act="g-item" data-k="p" data-id="' + esc(it.x.id) + '"><div class="row-main"><div class="row-title">Pago: ' + esc(C.userName(it.x.from)) + ' → ' + esc(C.userName(it.x.to)) + '</div><div class="meta">' + fdate(it.x.date) + '</div></div><div class="row-amt">' + money(it.x.amount, 'ARS') + '</div></button>';
+    var eps = C.groupEpochs(g), total = g.expenses.length + (g.payments || []).length;
+    var check = '<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg>';
+    function itemRow(it) {
+      if (it.t === 'p') return '<button class="row pay" data-act="g-item" data-k="p" data-id="' + esc(it.x.id) + '"><div class="row-main"><div class="row-title">' + check + esc(C.userName(it.x.from)) + ' le pagó a ' + esc(C.userName(it.x.to)) + '</div><div class="meta">Pago · ' + fdate(it.x.date) + '</div></div><div class="row-amt">' + money(it.x.amount, 'ARS') + '</div></button>';
       var e = it.x, all = e.splitAmong.length === g.members.length;
       return '<button class="row" data-act="g-item" data-k="e" data-id="' + esc(e.id) + '"><div class="row-main"><div class="row-title">' + esc(e.desc) + '</div><div class="meta">Pagó ' + esc(C.userName(e.paidBy)) + ' · ' + fdate(e.date) + '</div><div class="chips"><span class="chip chip-split">' + (all ? 'Entre todos' : 'Entre ' + e.splitAmong.map(C.userName).join(', ')) + '</span></div></div><div class="row-amt">' + money(e.amount, 'ARS') + '</div></button>';
-    }).join('') + '</div>' : '<p class="muted small" style="padding:0 16px 16px">Todavía no se cargó nada.</p>';
+    }
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Todo lo cargado</h2><span>' + total + '</span></div>';
+    var body = '';
+    eps.forEach(function (ep, k) {
+      if (k > 0) {
+        var key = g.id + ':' + ep.closer.id, open = !!ui.open[key];
+        body += '<button class="settled" data-act="g-epoch" data-k="' + esc(key) + '" aria-expanded="' + open + '">' + check + '<div><b>Todo saldado</b><div class="meta">' + fdate(ep.closer.date) + ' · ' + esc(C.userName(ep.closer.from)) + ' le pagó ' + money(ep.closer.amount, 'ARS') + ' a ' + esc(C.userName(ep.closer.to)) + ' · tocá para ' + (open ? 'esconder' : 'ver') + ' el historial (' + (ep.items.length + 1) + ')</div></div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
+        if (open) body += '<div class="list old">' + itemRow({ t: 'p', x: ep.closer }) + ep.items.map(itemRow).join('') + '</div>';
+      } else if (ep.items.length) body += '<div class="list">' + ep.items.map(itemRow).join('') + '</div>';
+    });
+    if (!total) body = '<p class="muted small" style="padding:0 16px 16px">Todavía no se cargó nada.</p>';
+    else if (!eps[0].items.length) body = '<p class="muted small" style="padding:0 16px 12px">Desde que se saldó todo no se cargó nada nuevo.</p>' + body;
+    h += body;
     return h + '</section>';
+  }
+  function fdt(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function logAct(g, text) { g.activity = g.activity || []; g.activity.push({ id: C.uid(), ts: Date.now(), who: S.whoami, text: text }); }
+  function names(ids) { return ids.map(C.userName).join(', '); }
+  function diffExpense(old, o) {
+    var d = [];
+    if (old.desc !== o.desc) d.push('nombre de "' + old.desc + '" a "' + o.desc + '"');
+    if (old.amount !== o.amount) d.push('monto de ' + money(old.amount, 'ARS') + ' a ' + money(o.amount, 'ARS'));
+    if (old.paidBy !== o.paidBy) d.push('quién pagó: de ' + C.userName(old.paidBy) + ' a ' + C.userName(o.paidBy));
+    if (old.splitAmong.slice().sort().join() !== o.splitAmong.slice().sort().join()) d.push('reparto: de ' + names(old.splitAmong) + ' a ' + names(o.splitAmong));
+    if (old.date !== o.date) d.push('fecha de ' + fdate(old.date) + ' a ' + fdate(o.date));
+    return d;
   }
   function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function userOpts(ids, sel) { return ids.map(function (id) { return '<option value="' + id + '"' + (id === sel ? ' selected' : '') + '>' + esc(C.userName(id)) + '</option>'; }).join(''); }
@@ -1122,13 +1233,17 @@ details.person .list { background: var(--bg); }
         if (!desc) msg = 'Poné qué fue el gasto.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.'; else if (!who.length) msg = 'Elegí al menos una persona para repartir.';
         if (msg) { err.textContent = msg; err.hidden = false; return; }
         var o = { desc: desc, amount: C.r2(amt), paidBy: $('#gePaid').value, splitAmong: who, date: $('#geDate').value || today() };
-        if (ex) Object.assign(ex, o); else { o.id = C.uid(); o.ts = Date.now(); g.expenses.push(o); }
+        if (ex) {
+          var dd = diffExpense(ex, o);
+          if (dd.length) logAct(g, 'editó "' + ex.desc + '": ' + dd.join('; '));
+          Object.assign(ex, o);
+        } else { o.id = C.uid(); o.ts = Date.now(); g.expenses.push(o); logAct(g, 'cargó "' + o.desc + '" por ' + money(o.amount, 'ARS') + ', pagó ' + C.userName(o.paidBy) + ', entre ' + names(o.splitAmong)); }
         save(); closeModal(); render(); toast('Gasto guardado');
       };
       var del = root.querySelector('#geDelAsk');
       if (del) del.onclick = function () {
         $('#geDel').innerHTML = '<div class="alert bad"><span>¿Seguro? Se recalculan los saldos.</span><div class="btns"><button class="btn danger small" id="geYes">Sí, quitar</button><button class="btn ghost small" id="geNo">No</button></div></div>';
-        $('#geYes').onclick = function () { g.expenses = g.expenses.filter(function (x) { return x.id !== ex.id; }); save(); closeModal(); render(); };
+        $('#geYes').onclick = function () { logAct(g, 'quitó "' + ex.desc + '" (' + money(ex.amount, 'ARS') + ')'); g.expenses = g.expenses.filter(function (x) { return x.id !== ex.id; }); save(); closeModal(); render(); };
         $('#geNo').onclick = function () { groupExpenseModal(g, ex); };
       };
     });
@@ -1150,12 +1265,15 @@ details.person .list { background: var(--bg); }
         if (from === to) msg = 'Quien paga y quien recibe tienen que ser distintos.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.';
         if (msg) { err.textContent = msg; err.hidden = false; return; }
         var o = { from: from, to: to, amount: C.r2(amt), date: $('#gpDate').value || today() };
-        if (pay) Object.assign(pay, o); else { o.id = C.uid(); o.ts = Date.now(); g.payments = g.payments || []; g.payments.push(o); }
+        if (pay) {
+          if (pay.amount !== o.amount || pay.from !== o.from || pay.to !== o.to) logAct(g, 'editó un pago: ahora ' + C.userName(o.from) + ' le pagó ' + money(o.amount, 'ARS') + ' a ' + C.userName(o.to) + ' (antes ' + C.userName(pay.from) + ' → ' + C.userName(pay.to) + ' ' + money(pay.amount, 'ARS') + ')');
+          Object.assign(pay, o);
+        } else { o.id = C.uid(); o.ts = Date.now(); g.payments = g.payments || []; g.payments.push(o); logAct(g, 'registró que ' + C.userName(o.from) + ' le pagó ' + money(o.amount, 'ARS') + ' a ' + C.userName(o.to)); }
         save(); closeModal(); render(); toast('Pago anotado');
       };
       var del = root.querySelector('#gpDelAsk');
       if (del) del.onclick = function () {
-        g.payments = g.payments.filter(function (x) { return x.id !== pay.id; }); save(); closeModal(); render();
+        logAct(g, 'quitó un pago de ' + money(pay.amount, 'ARS') + ' (' + C.userName(pay.from) + ' → ' + C.userName(pay.to) + ')'); g.payments = g.payments.filter(function (x) { return x.id !== pay.id; }); save(); closeModal(); render();
       };
     });
   }
@@ -1174,18 +1292,26 @@ details.person .list { background: var(--bg); }
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) { err.textContent = 'Ese mail no parece válido.'; err.hidden = false; return; }
         var u = C.USERS.find(function (x) { return x.email === m; });
         if (u && g.members.indexOf(u.id) >= 0) { err.textContent = u.name + ' ya está en el grupo.'; err.hidden = false; return; }
-        if (u) g.members.push(u.id); else { g.pending = g.pending || []; if (g.pending.indexOf(m) < 0) g.pending.push(m); }
+        if (u) { g.members.push(u.id); logAct(g, 'invitó a ' + u.name + ' (ya está en el grupo)'); } else { g.pending = g.pending || []; if (g.pending.indexOf(m) < 0) g.pending.push(m); logAct(g, 'invitó a ' + m); }
         save(); closeModal(); render(); toast(u ? u.name + ' entró al grupo' : 'Invitación anotada');
       };
     });
   }
 
+  function groupActivityModal(g) {
+    var list = (g.activity || []).slice().sort(function (x, y) { return (y.ts || 0) - (x.ts || 0); });
+    var h = '<h2>Actividad de ' + esc(g.name) + '</h2>' + (list.length ? '<div class="list act">' + list.map(function (x) {
+      return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title" style="font-weight:500"><b>' + esc(C.userName(x.who)) + '</b> ' + esc(x.text) + '</div><div class="meta">' + esc(fdt(x.ts)) + '</div></div></div>';
+    }).join('') + '</div>' : '<p class="muted">Todavía no hay movimientos. Desde ahora se anota quién carga, edita o quita algo.</p>') +
+      '<div class="btns"><button class="btn ghost" id="gaClose">Cerrar</button></div>';
+    openModal(h, function (root) { root.querySelector('#gaClose').onclick = closeModal; });
+  }
   function groupNewModal() {
     openModal('<h2>Nuevo grupo</h2><label class="f wide">Nombre<input type="text" id="gnName" placeholder="Ej. Vacaciones en la costa"></label><p class="err small" id="gnErr" hidden></p><div class="btns"><button class="btn" id="gnSave">Crear</button><button class="btn ghost" id="gnCancel">Cancelar</button></div>', function (root) {
       root.querySelector('#gnCancel').onclick = closeModal;
       root.querySelector('#gnSave').onclick = function () {
         var n = $('#gnName').value.trim(); if (!n) { var e = $('#gnErr'); e.textContent = 'Ponele un nombre al grupo.'; e.hidden = false; return; }
-        var g = { id: C.uid(), name: n, createdBy: S.whoami, members: [S.whoami], pending: [], expenses: [], payments: [] };
+        var g = { id: C.uid(), name: n, createdBy: S.whoami, members: [S.whoami], pending: [], expenses: [], payments: [], activity: [] }; logAct(g, 'creó el grupo');
         S.groups.push(g); ui.group = g.id; ui.from = ui.tab; save(); closeModal(); if (ui.tab !== 'grupos') setTab('grupos'); else render();
       };
     });
@@ -1468,10 +1594,12 @@ details.person .list { background: var(--bg); }
       case 'tab': setTab(el.getAttribute('data-tab')); break;
       case 'g-new': groupNewModal(); break;
       case 'g-open': ui.group = el.getAttribute('data-id'); ui.from = ui.tab; if (ui.tab !== 'grupos') setTab('grupos'); else { render(); window.scrollTo(0, 0); } break;
-      case 'g-back': ui.group = null; if (ui.from === 'inicio') { ui.from = null; setTab('inicio'); } else render(); break;
+      case 'g-back': ui.group = null; ui.from = null; setTab('inicio'); break;
       case 'g-exp': if (gOf(ui.group)) groupExpenseModal(gOf(ui.group)); break;
       case 'g-pay': if (gOf(ui.group)) groupPaymentModal(gOf(ui.group)); break;
       case 'g-inv': if (gOf(ui.group)) groupInviteModal(gOf(ui.group)); break;
+      case 'g-act': if (gOf(ui.group)) groupActivityModal(gOf(ui.group)); break;
+      case 'g-epoch': var ek = el.getAttribute('data-k'); ui.open[ek] = !ui.open[ek]; var sy = window.scrollY; render(); window.scrollTo(0, sy); break;
       case 'g-settle':
         var gg = gOf(ui.group), sg = C.settle(C.groupBalances(gg).nets)[+el.getAttribute('data-i')];
         if (sg) groupPaymentModal(gg, null, { from: sg.from, to: sg.to, amount: sg.amount, date: today() }); break;
@@ -1526,7 +1654,7 @@ details.person .list { background: var(--bg); }
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
-    if (t.id === 'monthSel') { ui.month = t.value; render(); return; }
+    if (t.id === 'monthSel') { ui.hist = t.value; render(); return; }
     if (t.id === 'whoami') { S.whoami = t.value; save(); ui.group = null; render(); return; }
     if (t.id === 'pdfFile') { handleFiles(t.files); t.value = ''; return; }
     if (t.id === 'bkFile') {
