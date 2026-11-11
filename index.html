@@ -1,0 +1,1546 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Cuentas Claras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: columna única pensada para el celular (barra de pestañas abajo); en pantallas anchas la misma columna centrada.
+   Identidad: papel verdoso y tinta oscura, un solo verde profundo como acento, números grandes en Space Grotesk. */
+:root {
+  --bg: #F1F5F3;
+  --surface: #FFFFFF;
+  --surface-2: #E8EFEC;
+  --ink: #14201C;
+  --muted: #55665F;
+  --line: #D6DFDB;
+  --accent: #0E6B58;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #D7EEE6;
+  --warn: #8A5200;
+  --warn-soft: #FBEACB;
+  --bad: #B3261E;
+  --bad-soft: #FBE0DD;
+  --good: #176B3B;
+  --good-soft: #D6EFDD;
+  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --r: 14px;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1412; --surface: #151E1B; --surface-2: #1D2825; --ink: #E5EFEB; --muted: #90A59C; --line: #28352F;
+    --accent: #5FD0B2; --accent-ink: #06201A; --accent-soft: #163A30;
+    --warn: #F0B84A; --warn-soft: #3A2D10; --bad: #FF8F86; --bad-soft: #40201D; --good: #6FD39A; --good-soft: #143323;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1412; --surface: #151E1B; --surface-2: #1D2825; --ink: #E5EFEB; --muted: #90A59C; --line: #28352F;
+  --accent: #5FD0B2; --accent-ink: #06201A; --accent-soft: #163A30;
+  --warn: #F0B84A; --warn-soft: #3A2D10; --bad: #FF8F86; --bad-soft: #40201D; --good: #6FD39A; --good-soft: #143323;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-text); font-size: 15px; line-height: 1.45;
+  padding-left: var(--gutter-l); padding-right: var(--gutter-r); padding-block: 0;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; }
+.num, .row-amt, .stat b, .hero b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#shell { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-block: 16px 96px; min-width: 0; }
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+.month { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.month select { min-width: 190px; }
+#view { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* controles */
+input[type=text], input[type=email], input[type=number], input[type=month], select, textarea {
+  width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 16px; min-width: 0;
+}
+input::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
+label.f { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
+label.chk { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink); min-height: 44px; }
+label.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent; background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; }
+.btn:hover { filter: brightness(1.06); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { background: var(--surface-2); filter: none; }
+.btn.danger { background: transparent; color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* piezas */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card.flat { padding: 0; gap: 0; overflow: hidden; }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sec-h h2 { font-size: 17px; font-weight: 600; }
+.sec-h span { font-size: 13px; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.hero { background: var(--accent); color: var(--accent-ink); border-radius: var(--r); padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 4px; }
+.hero small { font-size: 13px; opacity: .85; }
+.hero b { font-size: clamp(32px, 9vw, 44px); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }
+.hero .usd { font-family: var(--font-display); font-size: 18px; opacity: .9; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat small { color: var(--muted); font-size: 13px; }
+.stat b { font-size: 20px; font-weight: 600; white-space: nowrap; }
+.stat b .usd, .row-amt .usd { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+.hero b .usd { display: block; }
+[hidden] { display: none !important; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; line-height: 1; padding: 5px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.chip-split { background: var(--accent-soft); color: var(--accent); }
+.chip-end { background: var(--warn-soft); color: var(--warn); }
+.chip-warn { background: var(--warn-soft); color: var(--warn); border: 1px dashed currentColor; }
+.hero.debt { background: var(--bad-soft); color: var(--bad); }
+.gear { margin-left: 2px; width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 10px; cursor: pointer; align-self: center; }
+.gear svg { width: 20px; height: 20px; }
+.gear[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.chkset { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; min-width: 0; }
+.chkset legend { font-size: 13px; color: var(--muted); padding: 0 6px; }
+.chk { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; min-height: 36px; }
+.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row-amt.owe { color: var(--bad); }
+.chip-bad { background: var(--bad-soft); color: var(--bad); }
+.chip-good { background: var(--good-soft); color: var(--good); }
+
+.list { display: flex; flex-direction: column; }
+.row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 16px; background: transparent; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; min-width: 0; }
+.row:first-child { border-top: 0; }
+button.row:hover { background: var(--surface-2); }
+.row-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.row-title { font-weight: 500; overflow-wrap: anywhere; }
+.row-amt { font-weight: 600; white-space: nowrap; text-align: right; }
+.row-amt.neg { color: var(--good); }
+.meta { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.group-h { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 12px 16px; background: var(--surface-2); font-size: 13px; color: var(--muted); }
+.group-h b { color: var(--ink); font-family: var(--font-display); font-size: 14px; }
+details.person { border-top: 1px solid var(--line); }
+details.person:first-child { border-top: 0; }
+details.person > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; min-height: 52px; }
+details.person > summary::-webkit-details-marker { display: none; }
+details.person > summary::after { content: '›'; color: var(--muted); font-size: 20px; transform: rotate(90deg); transition: transform .15s; margin-left: 4px; }
+details.person[open] > summary::after { transform: rotate(-90deg); }
+.person-name { font-weight: 600; font-size: 16px; }
+.person-sub { display: flex; align-items: center; gap: 10px; }
+details.person .list { background: var(--bg); }
+.empty { text-align: center; padding: 28px 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.empty h2 { font-size: 20px; }
+.empty p { color: var(--muted); max-width: 44ch; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 12px; }
+.seg button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+.seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.fchip { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; cursor: pointer; }
+.fchip[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.dz { position: relative; border: 2px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); border-radius: var(--r); background: var(--surface); padding: 26px 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; cursor: pointer; }
+.dz.over { background: var(--accent-soft); }
+.dz b { font-family: var(--font-display); font-size: 18px; }
+.dz input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.alert { border-radius: 10px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+.alert.bad { background: var(--bad-soft); color: var(--bad); }
+.alert.warn { background: var(--warn-soft); color: var(--warn); }
+.alert.good { background: var(--good-soft); color: var(--good); }
+.alert ul { margin: 0; padding-left: 18px; }
+.ask { border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+
+.rv { gap: 14px; }
+.rv-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; align-items: baseline; }
+.rv-head h3 { font-size: 18px; }
+.rv-item { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); min-width: 0; }
+.rv-item:first-child { border-top: 0; }
+.rv-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.rv-ctrls { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 10px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid .wide { grid-column: 1 / -1; }
+.err { color: var(--bad); }
+
+/* navegación inferior */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 6px var(--gutter-r) calc(6px + env(safe-area-inset-bottom, 0px)) var(--gutter-l); }
+.tabs-in { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 52px; justify-content: center; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 500; border-radius: 10px; cursor: pointer; }
+.tab svg { width: 22px; height: 22px; }
+.tab[aria-current=page] { color: var(--accent); }
+.tab[aria-current=page] svg { stroke-width: 2.2; }
+
+/* modal y aviso */
+#modalRoot:empty { display: none; }
+.scrim { position: fixed; inset: 0; z-index: 40; background: rgba(8, 14, 12, .55); display: flex; align-items: flex-end; justify-content: center; padding: 0; }
+.sheet { background: var(--surface); width: min(560px, 100%); max-height: 92%; overflow: auto; border-radius: 18px 18px 0 0; padding: 18px var(--gutter-r) calc(18px + env(safe-area-inset-bottom, 0px)) var(--gutter-l); display: flex; flex-direction: column; gap: 14px; }
+@media (min-width: 640px) { .scrim { align-items: center; padding: 24px; } .sheet { border-radius: 18px; padding: 20px; } }
+.sheet h2 { font-size: 20px; }
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 50; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#toast.on { opacity: 1; }
+.priv li { margin-bottom: 6px; }
+.priv ul { margin: 0; padding-left: 20px; }
+@media (max-width: 420px) { .rv-ctrls, .form-grid { grid-template-columns: minmax(0, 1fr); } .month select { min-width: 0; width: 100%; } .month { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="shell">
+  <header class="top">
+    <div class="brand"><h1>Cuentas Claras</h1><span class="tag">Prototipo</span><button class="gear" id="gear" data-act="tab" data-tab="ajustes" aria-label="Ajustes" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/></svg></button></div>
+    <label class="month" id="monthWrap">Mes en que vence
+      <select id="monthSel"></select>
+    </label>
+  </header>
+  <div id="demoBanner" hidden></div>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="Secciones"><div class="tabs-in" id="tabs"></div></nav>
+<div id="modalRoot"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/* Cuentas Claras · núcleo: lectura de resúmenes (parsers) + lógica de cuotas.
+   Funciones puras, sin DOM. Se prueban con Node y se incrustan en la página. */
+(function (root) {
+  'use strict';
+
+  /* ---------- utilidades ---------- */
+  var MESES = {
+    ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, set: 8, oct: 9, nov: 10, dic: 11,
+    enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6, agosto: 7,
+    septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11
+  };
+  var AMT = '-?\\d{1,3}(?:\\.\\d{3})*,\\d{2}';
+  var AMTP = '\\d{1,3}(?:\\.\\d{3})*,\\d{2}';
+  var LABELS = { 'galicia-visa': 'Galicia Visa', 'galicia-mc': 'Galicia Mastercard', mp: 'Mercado Pago', manual: 'A mano' };
+
+  function strip(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function mesIdx(s) { var v = MESES[strip(s).toLowerCase()]; return v === undefined ? -1 : v; }
+  function num(s) { return parseFloat(String(s).replace(/\./g, '').replace(',', '.')); }
+  function r2(x) { return Math.round(x * 100) / 100; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function iso(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+  function normDesc(s) { return strip(s).toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function normCore(s) { return normDesc(s).replace(/^reembolso de /, ''); }
+  function nameBase(s) {
+    return strip(s).toLowerCase().replace(/^(reembolso de|transferencia para)\s+/, '')
+      .replace(/\.com(\.ar)?/g, '').replace(/usd/g, '').replace(/[^a-z]/g, '');
+  }
+  function uid() { return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function cleanLines(input) {
+    var arr = Array.isArray(input) ? input : String(input).split(/\r?\n/);
+    var out = [];
+    arr.forEach(function (l) {
+      var t = String(l).replace(/[   ]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (t) out.push(t);
+    });
+    return out;
+  }
+
+  function detectIssuer(lines) {
+    var text = lines.join('\n');
+    if (/Este es tu resumen de/i.test(text) && /mercado\s*pago|mercadolibre/i.test(text)) return 'mp';
+    if (/Tarjeta\s+Cr.dito\s+MASTERCARD/i.test(text)) return 'galicia-mc';
+    if (/Tarjeta\s+Cr.dito\s+VISA/i.test(text)) return 'galicia-visa';
+    return null;
+  }
+
+  function baseResult(issuer) {
+    return {
+      issuer: issuer, label: LABELS[issuer], closeISO: null, dueISO: null, payMonth: null,
+      lines: [], refunds: [], expected: null, sum: { ars: 0, usd: 0 }, ok: false, problems: []
+    };
+  }
+
+  function finish(res) {
+    res.sum.ars = 0; res.sum.usd = 0;
+    res.lines.forEach(function (l) { if (l.currency === 'USD') res.sum.usd += l.amount; else res.sum.ars += l.amount; });
+    res.sum.ars = r2(res.sum.ars); res.sum.usd = r2(res.sum.usd);
+    if (!res.closeISO) res.problems.push('No encontré las fechas de cierre y vencimiento.');
+    if (!res.lines.length) res.problems.push('No encontré ningún consumo.');
+    if (!res.expected) res.problems.push('No encontré el total de consumos del resumen para chequear.');
+    else {
+      if (Math.abs(res.sum.ars - res.expected.ars) > 0.009)
+        res.problems.push('La suma de lo que leí en pesos da ' + res.sum.ars.toFixed(2) + ' y el resumen dice ' + res.expected.ars.toFixed(2) + '.');
+      if (Math.abs(res.sum.usd - (res.expected.usd || 0)) > 0.009)
+        res.problems.push('La suma de lo que leí en dólares da ' + res.sum.usd.toFixed(2) + ' y el resumen dice ' + (res.expected.usd || 0).toFixed(2) + '.');
+    }
+    res.ok = res.problems.length === 0;
+    return res;
+  }
+
+  /* ---------- Galicia (Visa y Mastercard) ---------- */
+  function galiciaDates(lines) {
+    var re = /\b(\d{2})-([A-Za-zÀ-ÿ]{3})-(\d{2})\b/g;
+    for (var i = 0; i < lines.length; i++) {
+      var m = Array.from(lines[i].matchAll(re));
+      if (m.length >= 6) {
+        var f = function (x) { return iso(2000 + (+x[3]), mesIdx(x[2]), +x[1]); };
+        return { closeISO: f(m[2]), dueISO: f(m[3]) };
+      }
+    }
+    return null;
+  }
+
+  function parseGalicia(lines, issuer) {
+    var res = baseResult(issuer);
+    var d = galiciaDates(lines);
+    if (d) { res.closeISO = d.closeISO; res.dueISO = d.dueISO; res.payMonth = d.dueISO.slice(0, 7); }
+    var isVisa = issuer === 'galicia-visa';
+    var reV = new RegExp('^(\\d{2})-(\\d{2})-(\\d{2})\\s+(?:[*K]\\s+)?(.+?)\\s+(?:(\\d{2})/(\\d{2})\\s+)?(\\d{4,8})\\s+(' + AMT + ')$');
+    var reM = new RegExp('^(\\d{2})-([A-Za-z\\u00C0-\\u00FF]{3})-(\\d{2})\\s+(.+?)\\s+(?:(\\d{1,2})/(\\d{1,2})\\s+)?(\\d{4,8})\\s+(' + AMT + ')$');
+    var reTotV = new RegExp('Total Consumos de .*?(' + AMT + ')(?:\\s+(' + AMT + '))?\\s*$');
+    var reTotM = new RegExp('^SUBTOTAL\\s+(' + AMT + ')(?:\\s+(' + AMT + '))?\\s*$');
+    var inDetail = false;
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i];
+      if (/^DETALLE DEL CONSUMO/i.test(l)) { inDetail = true; continue; }
+      if (!inDetail) continue;
+      var t = l.match(isVisa ? reTotV : reTotM);
+      if (t) { res.expected = { ars: num(t[1]), usd: t[2] != null ? num(t[2]) : 0 }; break; }
+      var m = l.match(isVisa ? reV : reM);
+      if (!m) continue;
+      var date = isVisa ? iso(2000 + (+m[3]), (+m[2]) - 1, +m[1]) : iso(2000 + (+m[3]), mesIdx(m[2]), +m[1]);
+      var descRaw = m[4];
+      var usd = /USD/i.test(descRaw);
+      var desc = descRaw.replace(/\s*\d*USD\s+[\d.,]+\s*$/i, '').trim() || descRaw;
+      res.lines.push({
+        date: date, desc: desc, descRaw: descRaw,
+        cuota: m[5] ? +m[5] : null, total: m[6] ? +m[6] : null,
+        amount: num(m[8]), currency: usd ? 'USD' : 'ARS', ref: m[7]
+      });
+    }
+    return finish(res);
+  }
+
+  /* ---------- Mercado Pago ---------- */
+  function mpYear(day, mIdx, cuotaN, close) {
+    var closeIdx = close.y * 12 + close.m;
+    if (cuotaN) {
+      for (var y = close.y; y >= close.y - 5; y--) {
+        var first = y * 12 + mIdx + (day > close.d ? 1 : 0);
+        if (first + (cuotaN - 1) === closeIdx) return y;
+      }
+    }
+    var yy = close.y;
+    if (mIdx > close.m || (mIdx === close.m && day > close.d)) yy--;
+    return yy;
+  }
+
+  function parseMP(lines, opts) {
+    opts = opts || {};
+    var res = baseResult('mp');
+    var cyc = null;
+    for (var i = 0; i < lines.length && !cyc; i++) {
+      var c = lines[i].match(/Cierre actual\s+(\d{1,2}) de ([A-Za-zÀ-ÿ]+)\s+Vencimiento actual\s+(\d{1,2}) de ([A-Za-zÀ-ÿ]+)/i);
+      if (c) cyc = c;
+    }
+    var close = null;
+    if (cyc) {
+      var cm = mesIdx(cyc[2]), cd = +cyc[1], dm = mesIdx(cyc[4]), dd = +cyc[3];
+      var today = opts.today || new Date();
+      var cy = opts.year;
+      if (!cy) { cy = today.getFullYear(); if (new Date(cy, cm, cd) > today) cy--; }
+      var dy = dm < cm ? cy + 1 : cy;
+      close = { y: cy, m: cm, d: cd };
+      res.closeISO = iso(cy, cm, cd); res.dueISO = iso(dy, dm, dd); res.payMonth = res.dueISO.slice(0, 7);
+      res.year = cy;
+    }
+    var reL = new RegExp('^(\\d{1,2})/([A-Za-z]{3})\\s+(.+?)\\s+(?:(\\d{1,2}) de (\\d{1,2})\\s+)?(\\d{4,8})\\s+(-)?(US)?\\$\\s*(' + AMTP + ')$');
+    var reE = new RegExp('^Consumos\\s+-?\\$\\s*(' + AMTP + ')\\s+US\\$\\s*(' + AMTP + ')');
+    var sec = 'consumos';
+    lines.forEach(function (l) {
+      var e = l.match(reE);
+      if (e) { res.expected = { ars: num(e[1]), usd: num(e[2]) }; return; }
+      if (/^Ajustes y reembolsos$/i.test(l)) { sec = 'ajustes'; return; }
+      if (/^Impuestos e intereses/i.test(l)) { sec = 'impuestos'; return; }
+      if (/^Pagos anticipados$/i.test(l)) { sec = 'pagos'; return; }
+      if (/^Consumos$/i.test(l)) { sec = 'consumos'; return; }
+      if (sec === 'impuestos' || sec === 'pagos') return;
+      var m = l.match(reL);
+      if (!m || !close) return;
+      var mi = mesIdx(m[2]); if (mi < 0) return;
+      var cuota = m[4] ? +m[4] : null;
+      var y = mpYear(+m[1], mi, cuota, close);
+      var amount = num(m[9]) * (m[7] ? -1 : 1);
+      var line = {
+        date: iso(y, mi, +m[1]), desc: m[3].trim(), descRaw: m[3].trim(),
+        cuota: cuota, total: m[5] ? +m[5] : null, amount: amount,
+        currency: m[8] ? 'USD' : 'ARS', ref: m[6]
+      };
+      if (/^Transferencia para /i.test(line.desc)) line.tag = 'transferencia';
+      if (sec === 'ajustes') res.refunds.push(line); else res.lines.push(line);
+    });
+    return finish(res);
+  }
+
+  function parseStatement(input, opts) {
+    var lines = cleanLines(input);
+    var issuer = detectIssuer(lines);
+    if (!issuer) {
+      var r = baseResult(null); r.label = 'Formato desconocido';
+      r.problems.push('No reconozco este resumen. Por ahora leo Galicia Visa, Galicia Mastercard y Mercado Pago.');
+      return r;
+    }
+    return issuer === 'mp' ? parseMP(lines, opts) : parseGalicia(lines, issuer);
+  }
+
+  /* ---------- anulaciones (compra y devolución) ---------- */
+  function netPairs(lines, refunds) {
+    var all = lines.concat((refunds || []).map(function (r) { return Object.assign({}, r, { refund: true }); }));
+    var used = {}; var netted = [];
+    all.forEach(function (a, i) {
+      if (a.amount >= 0 || used[i]) return;
+      for (var j = 0; j < all.length; j++) {
+        var b = all[j];
+        if (j === i || used[j] || b.amount <= 0 || b.currency !== a.currency) continue;
+        if (r2(a.amount + b.amount) === 0 && normCore(a.desc) === normCore(b.desc)) {
+          used[i] = used[j] = true;
+          netted.push({ desc: b.desc, amount: b.amount, currency: b.currency });
+          break;
+        }
+      }
+    });
+    return { kept: all.filter(function (_, i) { return !used[i]; }), netted: netted };
+  }
+
+  /* ---------- estado y conciliación ---------- */
+  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [] }; }
+
+  function stmtOf(state, id) { return state.statements.find(function (s) { return s.id === id; }); }
+  function lastEntry(e) { return e.entries[e.entries.length - 1]; }
+  function kindOf(line) {
+    if (line.total) return 'cuota';
+    if (line.amount < 0) return 'unico';
+    return /\d{8,}/.test(line.descRaw || line.desc) ? 'recurrente' : 'unico';
+  }
+
+  function matchCuota(st, parsed, line, used) {
+    var cands = st.expenses.filter(function (e) {
+      if (e.issuer !== parsed.issuer || e.kind !== 'cuota' || e.status !== 'activo' || used[e.id]) return false;
+      if (e.key.total !== line.total || e.key.date !== line.date) return false;
+      var last = lastEntry(e), ls = stmtOf(st, last.stmtId);
+      if (!ls || ls.closeISO >= parsed.closeISO || last.cuota >= line.cuota) return false;
+      if (parsed.issuer === 'mp') return normCore(e.desc) === normCore(line.desc) && Math.abs(last.amount - line.amount) <= 1.5;
+      return e.key.ref === line.ref;
+    });
+    cands.sort(function (a, b) {
+      var la = lastEntry(a), lb = lastEntry(b);
+      return (line.cuota - la.cuota) - (line.cuota - lb.cuota) || Math.abs(la.amount - line.amount) - Math.abs(lb.amount - line.amount);
+    });
+    return cands[0] || null;
+  }
+
+  function matchRecurrent(st, parsed, line, used) {
+    var key = normDesc(line.desc);
+    return st.expenses.find(function (e) {
+      if (e.issuer !== parsed.issuer || e.kind !== 'recurrente' || e.status !== 'activo' || used[e.id]) return false;
+      var ls = stmtOf(st, lastEntry(e).stmtId);
+      if (!ls || ls.closeISO >= parsed.closeISO) return false;
+      return normDesc(e.desc) === key || (e.key.aliases || []).indexOf(key) >= 0;
+    }) || null;
+  }
+
+  function planImport(state, parsed) {
+    var st = state;
+    var net = netPairs(parsed.lines, parsed.refunds);
+    var prev = st.statements.filter(function (s) { return s.issuer === parsed.issuer && s.closeISO < parsed.closeISO; })
+      .sort(function (a, b) { return a.closeISO < b.closeISO ? 1 : -1; })[0] || null;
+    var gap = prev && prev.payMonth && parsed.payMonth ? Math.max(0, monthDiff(prev.payMonth, parsed.payMonth) - 1) : 0;
+    var used = {};
+    var items = net.kept.map(function (l) { return { line: l, kind: kindOf(l), match: null, annul: null, suggest: null }; });
+
+    items.forEach(function (it) {
+      if (!it.line.total) return;
+      var m = matchCuota(st, parsed, it.line, used);
+      if (m) { it.match = m.id; used[m.id] = true; }
+    });
+    items.forEach(function (it) {
+      if (it.line.total || it.kind !== 'recurrente' || it.line.amount < 0) return;
+      var m = matchRecurrent(st, parsed, it.line, used);
+      if (m) { it.match = m.id; used[m.id] = true; }
+    });
+    items.forEach(function (it) {
+      if (it.line.amount >= 0 || it.match) return;
+      var m = st.expenses.find(function (e) {
+        return e.issuer === parsed.issuer && e.status !== 'anulado' && e.kind === 'unico' && !used[e.id] &&
+          normCore(e.desc) === normCore(it.line.desc) &&
+          e.entries.some(function (en) { return r2(en.amount + it.line.amount) === 0; });
+      });
+      if (m) { it.annul = m.id; used[m.id] = true; }
+    });
+
+    // "¿es el mismo?": un gasto nuevo con el mismo nombre que uno del resumen anterior que no aparece
+    if (prev) {
+      var groups = {};
+      items.forEach(function (it) {
+        if (it.match || it.annul || it.line.total || it.line.amount <= 0 || it.kind !== 'unico') return;
+        var b = nameBase(it.line.desc); if (b.length < 3) return;
+        (groups[b] = groups[b] || []).push(it);
+      });
+      Object.keys(groups).forEach(function (b) {
+        if (groups[b].length !== 1) return;
+        var cands = st.expenses.filter(function (e) {
+          return e.issuer === parsed.issuer && e.status === 'activo' && (e.kind === 'unico' || e.kind === 'recurrente') &&
+            !used[e.id] && lastEntry(e).stmtId === prev.id && lastEntry(e).amount > 0 && nameBase(e.desc) === b;
+        });
+        if (cands.length === 1) groups[b][0].suggest = { expenseId: cands[0].id, desc: cands[0].desc, amount: lastEntry(cands[0]).amount, currency: lastEntry(cands[0]).currency };
+      });
+    }
+
+    var missing = [];
+    if (prev) {
+      missing = st.expenses.filter(function (e) {
+        return e.issuer === parsed.issuer && e.kind === 'cuota' && e.status === 'activo' && !used[e.id] &&
+          lastEntry(e).stmtId === prev.id && lastEntry(e).cuota < e.key.total;
+      }).map(function (e) { return { id: e.id, desc: e.custom || e.desc, cuota: lastEntry(e).cuota, total: e.key.total }; });
+    }
+    return { items: items, netted: net.netted, missing: missing, prevStmtId: prev ? prev.id : null, gapMonths: gap };
+  }
+
+  function commitImport(state, parsed, plan, choices) {
+    var s = clone(state);
+    var stmt = {
+      id: uid(), issuer: parsed.issuer, label: parsed.label, closeISO: parsed.closeISO, dueISO: parsed.dueISO,
+      payMonth: parsed.payMonth, importedAt: Date.now(), total: parsed.expected ? parsed.expected.ars : 0,
+      totalUsd: parsed.expected ? (parsed.expected.usd || 0) : 0, netted: plan.netted, count: plan.items.length
+    };
+    s.statements.push(stmt);
+    var byId = function (id) { return s.expenses.find(function (e) { return e.id === id; }); };
+    plan.items.forEach(function (it, i) {
+      var ch = choices[i] || {};
+      var line = it.line;
+      var entry = { stmtId: stmt.id, cuota: line.cuota, total: line.total, amount: line.amount, currency: line.currency, ref: line.ref, date: line.date, descRaw: line.desc };
+      if (it.annul) { var a = byId(it.annul); if (a) { a.status = 'anulado'; a.annulledBy = stmt.id; } return; }
+      var eid = it.match;
+      var viaSuggest = false;
+      if (!eid && it.suggest && ch.acceptSuggest) { eid = it.suggest.expenseId; viaSuggest = true; }
+      var e = eid ? byId(eid) : null;
+      if (e) {
+        e.entries.push(entry);
+        if (viaSuggest) { e.kind = 'recurrente'; e.key.aliases = (e.key.aliases || []).concat([normDesc(line.desc)]); }
+        if (ch.custom != null) e.custom = ch.custom;
+        if (ch.splitWith !== undefined) e.splitWith = ch.splitWith;
+        if (line.total && line.cuota >= line.total) e.status = 'terminado';
+      } else {
+        s.expenses.push({
+          id: uid(), issuer: parsed.issuer, kind: it.kind, desc: line.desc, custom: ch.custom || '',
+          key: { ref: line.ref, date: line.date, total: line.total, aliases: [] },
+          splitWith: ch.splitWith || null, tag: line.tag || null,
+          status: (line.total && line.cuota >= line.total) ? 'terminado' : 'activo', entries: [entry]
+        });
+      }
+    });
+    return s;
+  }
+
+  /* ---------- vistas por mes ---------- */
+  var MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function monthLabel(ym) { var p = ym.split('-'); return MESES_LARGO[+p[1] - 1] + ' ' + p[0]; }
+  function monthDiff(a, b) { var x = a.split('-'), y = b.split('-'); return (+y[0] * 12 + +y[1]) - (+x[0] * 12 + +x[1]); }
+  function nowYM() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1); }
+
+  function manualCuota(m, ym) {
+    var d = monthDiff(m.startMonth, ym);
+    if (d < 0) return null;
+    if (m.endMonth && ym > m.endMonth) return null;
+    if (m.cuotaTotal) { var n = (m.cuotaActual || 1) + d; return n > m.cuotaTotal ? null : { cuota: n, total: m.cuotaTotal }; }
+    if (m.monthly) return { cuota: null, total: null };
+    return d === 0 ? { cuota: null, total: null } : null;
+  }
+
+  function addMonths(ym, n) {
+    var p = ym.split('-'), t = (+p[0]) * 12 + (+p[1] - 1) + n;
+    return Math.floor(t / 12) + '-' + pad(t % 12 + 1);
+  }
+
+  /* Cuotas de meses sin resumen cargado: se estiman desde el último resumen conocido
+     (cuota = última conocida + meses transcurridos). */
+  function projectedRows(state, ym) {
+    var rows = [];
+    var have = {};
+    state.statements.forEach(function (s) { have[s.issuer + '|' + s.payMonth] = true; });
+    state.expenses.forEach(function (e) {
+      if (e.kind !== 'cuota' || e.status !== 'activo') return;
+      if (have[e.issuer + '|' + ym]) return;
+      var last = lastEntry(e), s = stmtOf(state, last.stmtId);
+      if (!s || !s.payMonth || s.payMonth >= ym) return;
+      var n = last.cuota + monthDiff(s.payMonth, ym);
+      if (n > e.key.total) return;
+      rows.push({
+        source: 'pdf', estimated: true, expenseId: e.id, entryIdx: null, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
+        desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: 'cuota', tag: e.tag, cuota: n, total: e.key.total,
+        amount: last.amount, currency: last.currency, splitWith: e.splitWith, status: e.status, date: last.date, ref: last.ref
+      });
+    });
+    return rows;
+  }
+
+  function monthsAvailable(state) {
+    var set = {};
+    state.statements.forEach(function (s) { if (s.payMonth) set[s.payMonth] = 1; });
+    state.manual.forEach(function (m) { set[m.startMonth] = 1; });
+    state.expenses.forEach(function (e) {
+      if (e.kind !== 'cuota' || e.status !== 'activo') return;
+      var last = lastEntry(e), s = stmtOf(state, last.stmtId);
+      if (!s || !s.payMonth) return;
+      var rest = Math.min(e.key.total - last.cuota, 12);
+      for (var i = 1; i <= rest; i++) set[addMonths(s.payMonth, i)] = 1;
+    });
+    set[nowYM()] = 1;
+    return Object.keys(set).sort().reverse();
+  }
+
+  function entriesForMonth(state, ym) {
+    var rows = [];
+    var stmts = state.statements.filter(function (s) { return s.payMonth === ym; });
+    var ids = {}; stmts.forEach(function (s) { ids[s.id] = s; });
+    state.expenses.forEach(function (e) {
+      e.entries.forEach(function (en, idx) {
+        var s = ids[en.stmtId]; if (!s) return;
+        rows.push({
+          source: 'pdf', expenseId: e.id, entryIdx: idx, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
+          desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: e.kind, tag: e.tag, cuota: en.cuota, total: en.total,
+          amount: en.amount, currency: en.currency, splitWith: e.splitWith, status: e.status, date: en.date, ref: en.ref
+        });
+      });
+    });
+    state.manual.forEach(function (m) {
+      var c = manualCuota(m, ym); if (!c) return;
+      rows.push({
+        source: 'manual', manualId: m.id, issuer: 'manual', label: LABELS.manual, desc: m.desc, custom: m.desc, descRaw: m.desc,
+        kind: m.monthly ? 'recurrente' : (c.total ? 'cuota' : 'unico'), cuota: c.cuota, total: c.total, amount: m.amount,
+        currency: m.currency || 'ARS', splitWith: m.splitWith, status: 'activo', monthly: !!m.monthly
+      });
+    });
+    return rows.concat(projectedRows(state, ym));
+  }
+
+  function totals(rows) {
+    var t = { total: { ARS: 0, USD: 0 }, mine: { ARS: 0, USD: 0 }, owed: { ARS: 0, USD: 0 }, by: {} };
+    rows.forEach(function (r) {
+      if (r.status === 'anulado') return;
+      var cur = r.currency === 'USD' ? 'USD' : 'ARS';
+      t.total[cur] += r.amount;
+      if (r.splitWith) {
+        var other = r2(r.amount / 2);
+        t.owed[cur] += other; t.mine[cur] += r.amount - other;
+        var b = t.by[r.splitWith] = t.by[r.splitWith] || { ARS: 0, USD: 0, rows: [] };
+        b[cur] += other; b.rows.push(Object.assign({ share: other }, r));
+      } else t.mine[cur] += r.amount;
+    });
+    ['total', 'mine', 'owed'].forEach(function (k) { t[k].ARS = r2(t[k].ARS); t[k].USD = r2(t[k].USD); });
+    Object.keys(t.by).forEach(function (k) { t.by[k].ARS = r2(t.by[k].ARS); t.by[k].USD = r2(t.by[k].USD); });
+    return t;
+  }
+
+  /* ---------- grupos (partes iguales) ---------- */
+  var USERS = [
+    { id: 'u-fercho', name: 'Fercho', email: 'fercho@prueba.com' },
+    { id: 'u-pepito', name: 'Pepito', email: 'pepito@prueba.com' },
+    { id: 'u-juancito', name: 'Juancito', email: 'juancito@prueba.com' }
+  ];
+  function userName(id) { var u = USERS.find(function (x) { return x.id === id; }); return u ? u.name : 'Alguien'; }
+  function cents(n) { return Math.round(n * 100); }
+  function splitCents(total, ids) {
+    var n = ids.length, base = Math.floor(total / n), rem = total - base * n;
+    return ids.map(function (id, i) { return { id: id, cents: base + (i < rem ? 1 : 0) }; });
+  }
+  function groupBalances(g) {
+    var b = {};
+    g.members.forEach(function (m) { b[m] = { paid: 0, owed: 0, adj: 0 }; });
+    g.expenses.forEach(function (e) {
+      var c = cents(e.amount);
+      if (b[e.paidBy]) b[e.paidBy].paid += c;
+      splitCents(c, e.splitAmong).forEach(function (sh) { if (b[sh.id]) b[sh.id].owed += sh.cents; });
+    });
+    (g.payments || []).forEach(function (p) {
+      var c = cents(p.amount);
+      if (b[p.from]) b[p.from].adj += c;
+      if (b[p.to]) b[p.to].adj -= c;
+    });
+    var by = {}, nets = {};
+    Object.keys(b).forEach(function (id) {
+      var net = b[id].paid - b[id].owed + b[id].adj;
+      nets[id] = net;
+      by[id] = { paid: b[id].paid / 100, owed: b[id].owed / 100, net: net / 100 };
+    });
+    return { by: by, nets: nets };
+  }
+  // pocas transferencias: el que más debe le paga al que más tiene a favor
+  function settle(nets) {
+    var d = [], c = [], out = [];
+    Object.keys(nets).forEach(function (id) {
+      if (nets[id] < 0) d.push({ id: id, v: -nets[id] }); else if (nets[id] > 0) c.push({ id: id, v: nets[id] });
+    });
+    var byV = function (a, b) { return b.v - a.v; };
+    while (d.length && c.length) {
+      d.sort(byV); c.sort(byV);
+      var x = Math.min(d[0].v, c[0].v);
+      out.push({ from: d[0].id, to: c[0].id, amount: x / 100 });
+      d[0].v -= x; c[0].v -= x;
+      if (d[0].v === 0) d.shift();
+      if (c[0].v === 0) c.shift();
+    }
+    return out;
+  }
+
+  /* ---------- datos de ejemplo (inventados) ---------- */
+  function demoState() {
+    var s = emptyState(); s.demo = true;
+    var vale = { id: 'c1', alias: 'Vale', email: 'vale@ejemplo.com' };
+    var mati = { id: 'c2', alias: 'Mati', email: 'mati@ejemplo.com' };
+    s.contacts = [vale, mati];
+    var oct = { id: 's-oct', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-01', dueISO: '2026-10-09', payMonth: '2026-10', total: 0, totalUsd: 0, netted: [], count: 3 };
+    var nov = { id: 's-nov', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-29', dueISO: '2026-11-11', payMonth: '2026-11', total: 214000, totalUsd: 0, netted: [], count: 5 };
+    var mpn = { id: 's-mp', issuer: 'mp', label: LABELS.mp, closeISO: '2026-10-27', dueISO: '2026-11-02', payMonth: '2026-11', total: 61500, totalUsd: 0, netted: [], count: 3 };
+    s.statements = [oct, nov, mpn];
+    function exp(issuer, kind, desc, custom, split, key, entries, status) {
+      s.expenses.push({ id: 'e' + s.expenses.length, issuer: issuer, kind: kind, desc: desc, custom: custom, key: key, splitWith: split, tag: null, status: status || 'activo', entries: entries });
+    }
+    function en(stmt, cuota, total, amount, ref, date, d) { return { stmtId: stmt, cuota: cuota, total: total, amount: amount, currency: 'ARS', ref: ref, date: date, descRaw: d }; }
+    exp('galicia-visa', 'cuota', 'COMERCIO EJEMPLO SA', 'Cubrecama', 'c1', { ref: '000412', date: '2026-06-12', total: 6, aliases: [] },
+      [en('s-oct', 4, 6, 18500, '000412', '2026-06-12', 'COMERCIO EJEMPLO SA'), en('s-nov', 5, 6, 18500, '000412', '2026-06-12', 'COMERCIO EJEMPLO SA')]);
+    exp('galicia-visa', 'cuota', 'TIENDA DEMO SRL', 'Zapatillas', null, { ref: '000977', date: '2026-08-02', total: 12, aliases: [] },
+      [en('s-oct', 2, 12, 24300, '000977', '2026-08-02', 'TIENDA DEMO SRL'), en('s-nov', 3, 12, 24300, '000977', '2026-08-02', 'TIENDA DEMO SRL')]);
+    exp('galicia-visa', 'recurrente', 'INTERNET DEMO 000000001234567', 'Internet', 'c2', { ref: '000001', date: '2026-10-16', total: null, aliases: [] },
+      [en('s-oct', null, null, 71200, '000001', '2026-09-16', 'INTERNET DEMO'), en('s-nov', null, null, 74800, '000001', '2026-10-16', 'INTERNET DEMO')]);
+    exp('galicia-visa', 'unico', 'RESTO EJEMPLO', '', 'c1', { ref: '008811', date: '2026-10-21', total: null, aliases: [] },
+      [en('s-nov', null, null, 38200, '008811', '2026-10-21', 'RESTO EJEMPLO')]);
+    exp('galicia-visa', 'unico', 'FARMACIA DEMO', '', null, { ref: '004455', date: '2026-10-25', total: null, aliases: [] },
+      [en('s-nov', null, null, 14900, '004455', '2026-10-25', 'FARMACIA DEMO')]);
+    exp('mp', 'cuota', 'MERPAGO*TIENDADEMO', 'Mesa de luz', 'c2', { ref: '120344', date: '2026-07-10', total: 9, aliases: [] },
+      [en('s-mp', 4, 9, 11500, '120344', '2026-07-10', 'MERPAGO*TIENDADEMO')]);
+    exp('mp', 'unico', 'Transferencia para MERPAGO*PERSONAEJEMPLO', 'Regalo', 'c1', { ref: '778811', date: '2026-10-18', total: null, aliases: [] },
+      [en('s-mp', null, null, 30000, '778811', '2026-10-18', 'Transferencia para MERPAGO*PERSONAEJEMPLO')]);
+    exp('mp', 'unico', 'MERPAGO*KIOSCODEMO', '', null, { ref: '554433', date: '2026-10-12', total: null, aliases: [] },
+      [en('s-mp', null, null, 20000, '554433', '2026-10-12', 'MERPAGO*KIOSCODEMO')]);
+    s.manual = [
+      { id: 'm1', desc: 'Alquiler del depto', amount: 380000, currency: 'ARS', startMonth: '2026-10', cuotaActual: null, cuotaTotal: null, monthly: true, endMonth: null, splitWith: 'c2' },
+      { id: 'm2', desc: 'Préstamo a Vale', amount: 25000, currency: 'ARS', startMonth: '2026-11', cuotaActual: 2, cuotaTotal: 5, monthly: false, endMonth: null, splitWith: null }
+    ];
+    s.groups = [{
+      id: 'g-demo', name: 'Vacaciones en Bariloche (ejemplo)', createdBy: 'u-fercho', members: ['u-fercho', 'u-pepito', 'u-juancito'], pending: [],
+      expenses: [
+        { id: 'ge1', desc: 'Super del primer día', amount: 48600, paidBy: 'u-fercho', splitAmong: ['u-fercho', 'u-pepito', 'u-juancito'], date: '2026-11-03', ts: 1 },
+        { id: 'ge2', desc: 'Cerveza y fernet', amount: 21000, paidBy: 'u-pepito', splitAmong: ['u-fercho', 'u-pepito'], date: '2026-11-03', ts: 2 },
+        { id: 'ge3', desc: 'Nafta', amount: 36000, paidBy: 'u-juancito', splitAmong: ['u-fercho', 'u-pepito', 'u-juancito'], date: '2026-11-04', ts: 3 }
+      ],
+      payments: [{ id: 'gp1', from: 'u-pepito', to: 'u-fercho', amount: 5000, date: '2026-11-05', ts: 4 }]
+    }];
+    return s;
+  }
+
+
+  /* ---------- armado de líneas desde los textos que entrega pdf.js ---------- */
+  function linesFromItems(items) {
+    var its = items.filter(function (i) { return i.str && i.str.trim() !== ''; })
+      .sort(function (a, b) { return b.y - a.y || a.x - b.x; });
+    var groups = [], cur = null;
+    its.forEach(function (it) {
+      if (cur && Math.abs(cur.y - it.y) <= 3) cur.items.push(it);
+      else { cur = { y: it.y, items: [it] }; groups.push(cur); }
+    });
+    return groups.map(function (g) {
+      var out = '', prevEnd = null;
+      g.items.sort(function (a, b) { return a.x - b.x; }).forEach(function (it) {
+        if (prevEnd !== null) out += (it.x - prevEnd < 0.8) ? '' : ' ';
+        out += it.str.trim();
+        prevEnd = it.x + (it.w || 0);
+      });
+      return out;
+    });
+  }
+
+  root.Core = {
+    USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
+    LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
+    parseStatement: parseStatement, netPairs: netPairs, emptyState: emptyState, planImport: planImport,
+    commitImport: commitImport, monthLabel: monthLabel, monthsAvailable: monthsAvailable, entriesForMonth: entriesForMonth,
+    linesFromItems: linesFromItems, totals: totals, manualCuota: manualCuota, nowYM: nowYM, demoState: demoState, normDesc: normDesc, nameBase: nameBase
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.Core;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.Core;
+  var KEY = 'cuentas-claras-v1';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  };
+
+  /* ---------- estado y guardado ---------- */
+  var S = loadState();
+  var ui = { group: null, tab: 'inicio', month: null, mode: 'pdf', reviews: [], filter: 'todos', q: '', mdraft: null, busy: 0 };
+  var rowIndex = {};
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { var o = JSON.parse(raw); if (o && o.v === 1) return norm(o); }
+    } catch (e) { /* sin almacenamiento: queda en memoria */ }
+    return C.emptyState();
+  }
+  function norm(o) {
+    if (!Array.isArray(o.groups)) o.groups = [];
+    if (!o.whoami) o.whoami = 'u-fercho';
+    return o;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignorar */ } }
+
+  /* ---------- formato ---------- */
+  var nf = { ARS: new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }), USD: new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }) };
+  function money(n, cur) { return nf[cur === 'USD' ? 'USD' : 'ARS'].format(n); }
+  function fdate(iso) { if (!iso) return ''; var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function fshort(iso) { if (!iso) return ''; var p = iso.split('-'); return p[2] + '/' + p[1]; }
+  function cname(id) { var c = S.contacts.find(function (x) { return x.id === id; }); return c ? c.alias : 'Sin contacto'; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* ---------- íconos ---------- */
+  var ICON = {
+    inicio: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/>',
+    cargar: '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v4h16v-4"/>',
+    gastos: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+    grupos: '<circle cx="8" cy="9" r="3"/><circle cx="16.500" cy="10" r="2.500"/><path d="M2.500 19c.4-3 2.600-4.500 5.500-4.500s5.100 1.500 5.500 4.500M14 15.200c.800-.400 1.600-.600 2.500-.600 2.300 0 4 1.200 5 4.400"/>',
+    contactos: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.6 3.2-5.5 6.5-5.5s6 1.900 6.500 5.500"/><path d="M16 4.700a3.500 3.500 0 0 1 0 6.600M18 14.800c2 .700 3.200 2.300 3.500 5.200"/>',
+    ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/>'
+  };
+  var TABS = [['inicio', 'Inicio'], ['cargar', 'Cargar'], ['gastos', 'Gastos'], ['grupos', 'Grupos'], ['contactos', 'Contactos']];
+  var ALL_TABS = TABS.concat([['ajustes', 'Ajustes']]);
+
+  /* ---------- aviso ---------- */
+  var toastT;
+  function toast(msg) {
+    var t = $('#toast'); t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 2600);
+  }
+
+  /* ---------- modal ---------- */
+  function openModal(html, mount) {
+    var root = $('#modalRoot');
+    root.innerHTML = '<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true">' + html + '</div></div>';
+    if (mount) mount(root);
+    var f = root.querySelector('input,select,textarea'); if (f && window.matchMedia('(min-width: 640px)').matches) f.focus();
+  }
+  function closeModal() { $('#modalRoot').innerHTML = ''; }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+  /* ---------- contactos ---------- */
+  function contactOptions(sel, withNew) {
+    var o = '<option value="">No lo divido</option>';
+    S.contacts.forEach(function (c) { o += '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.alias) + '</option>'; });
+    if (withNew) o += '<option value="__new">+ Agregar contacto…</option>';
+    return o;
+  }
+
+  function contactModal(existing, done) {
+    openModal(
+      '<h2>' + (existing ? 'Editar contacto' : 'Nuevo contacto') + '</h2>' +
+      '<label class="f">Alias (como lo ves vos)<input type="text" id="cAlias" value="' + esc(existing ? existing.alias : '') + '" placeholder="Vale" maxlength="30"></label>' +
+      '<label class="f">Mail<input type="email" id="cMail" value="' + esc(existing ? existing.email : '') + '" placeholder="vale@mail.com" autocapitalize="none"></label>' +
+      '<p class="small muted">El mail es lo único que se guarda de la otra persona. Más adelante sirve para que vea lo que le cargás.</p>' +
+      '<p class="err small" id="cErr" hidden></p>' +
+      '<div class="btns"><button class="btn" id="cSave">Guardar</button><button class="btn ghost" id="cCancel">Cancelar</button></div>',
+      function (root) {
+        root.querySelector('#cCancel').onclick = function () { closeModal(); if (done) done(null); };
+        root.querySelector('#cSave').onclick = function () {
+          var alias = $('#cAlias').value.trim(), mail = $('#cMail').value.trim(), err = $('#cErr');
+          var msg = '';
+          if (!alias) msg = 'Poné un alias.';
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) msg = 'Revisá el mail, no parece válido.';
+          else if (S.contacts.some(function (c) { return c.alias.toLowerCase() === alias.toLowerCase() && (!existing || c.id !== existing.id); })) msg = 'Ya tenés un contacto con ese alias.';
+          if (msg) { err.textContent = msg; err.hidden = false; return; }
+          var c;
+          if (existing) { c = S.contacts.find(function (x) { return x.id === existing.id; }); c.alias = alias; c.email = mail; }
+          else { c = { id: C.uid(), alias: alias, email: mail }; S.contacts.push(c); }
+          S.demo = false; save(); closeModal(); if (done) done(c); else render();
+        };
+      });
+  }
+
+  /* ---------- armado de pantallas ---------- */
+  function render() {
+    // mes
+    var months = C.monthsAvailable(S);
+    if (!ui.month || months.indexOf(ui.month) < 0) {
+      var withStmt = S.statements.map(function (s) { return s.payMonth; }).filter(Boolean).sort().reverse();
+      ui.month = withStmt[0] || C.nowYM();
+      if (months.indexOf(ui.month) < 0) months.unshift(ui.month);
+    }
+    $('#monthSel').innerHTML = months.map(function (m) { return '<option value="' + m + '"' + (m === ui.month ? ' selected' : '') + '>' + cap(C.monthLabel(m)) + '</option>'; }).join('');
+    $('#monthWrap').hidden = (ui.tab === 'contactos' || ui.tab === 'ajustes' || ui.tab === 'cargar' || ui.tab === 'grupos');
+    // aviso demo
+    var db = $('#demoBanner');
+    if (S.demo) {
+      db.hidden = false;
+      db.innerHTML = '<div class="alert warn"><span><b>Datos de ejemplo.</b> Todo lo que ves es inventado. Cuando cargues tu primer resumen real, se borra.</span><div class="btns"><button class="btn small" data-act="wipe-demo">Empezar con mis datos</button></div></div>';
+    } else { db.hidden = true; db.innerHTML = ''; }
+    // pestañas
+    var gear = $('#gear'); if (gear) gear.setAttribute('aria-pressed', String(ui.tab === 'ajustes'));
+    $('#tabs').innerHTML = TABS.map(function (t) {
+      return '<button class="tab" data-act="tab" data-tab="' + t[0] + '"' + (ui.tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[t[0]] + '</svg>' + t[1] + '</button>';
+    }).join('');
+    var v = $('#view');
+    rowIndex = {};
+    v.innerHTML = ({ inicio: viewInicio, cargar: viewCargar, gastos: viewGastos, contactos: viewContactos, grupos: viewGrupos, ajustes: viewAjustes })[ui.tab]();
+  }
+
+  function setTab(t, scroll) {
+    ui.tab = t;
+    if (location.hash !== '#' + t) { try { history.replaceState(null, '', '#' + t); } catch (e) { /* ignorar */ } }
+    render();
+    if (scroll !== false) window.scrollTo(0, 0);
+  }
+
+  function rowKey(r) { var k = r.source === 'pdf' ? 'p:' + r.expenseId + ':' + (r.estimated ? 'e' : r.entryIdx) : 'm:' + r.manualId; rowIndex[k] = r; return k; }
+
+  function rowHTML(r) {
+    var chips = [];
+    if (r.total) chips.push('<span class="chip' + (r.cuota === r.total ? ' chip-end' : '') + '">' + (r.cuota === r.total ? 'Última · ' : '') + 'Cuota ' + r.cuota + ' de ' + r.total + '</span>');
+    if (r.estimated) chips.push('<span class="chip chip-warn">Estimada</span>');
+    if (r.kind === 'recurrente') chips.push('<span class="chip">Todos los meses</span>');
+    if (r.tag === 'transferencia') chips.push('<span class="chip">Transferencia</span>');
+    if (r.splitWith) chips.push('<span class="chip chip-split">÷ ' + esc(cname(r.splitWith)) + '</span>');
+    if (r.status === 'anulado') chips.push('<span class="chip chip-bad">Anulado</span>');
+    var sub = (r.source === 'pdf' && r.custom && r.descRaw !== r.custom) ? '<div class="meta mono">' + esc(r.descRaw) + '</div>' : '';
+    return '<button class="row" data-act="open-row" data-key="' + rowKey(r) + '"><div class="row-main"><div class="row-title"' + (r.status === 'anulado' ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(r.desc) + '</div>' + sub +
+      (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '') + '</div><div class="row-amt' + (r.amount < 0 ? ' neg' : '') + '">' + money(r.amount, r.currency) + '</div></button>';
+  }
+
+  function both(o, cls) {
+    var s = money(o.ARS, 'ARS');
+    if (o.USD) s += '<span class="' + (cls || 'usd') + '">+ ' + money(o.USD, 'USD') + '</span>';
+    return s;
+  }
+
+  /* ----- Inicio ----- */
+  function viewInicio() {
+    var rows = C.entriesForMonth(S, ui.month), t = C.totals(rows);
+    var stmts = S.statements.filter(function (s) { return s.payMonth === ui.month; });
+    if (!rows.length && !stmts.length) {
+      return '<section class="card empty"><h2>Todavía no hay nada en ' + esc(C.monthLabel(ui.month)) + '</h2>' +
+        '<p>Subí el PDF de un resumen y la app lee los consumos, las cuotas y a quién le tenés que cobrar.</p>' +
+        '<div class="btns" style="justify-content:center"><button class="btn" data-act="tab" data-tab="cargar">Cargar un resumen</button>' +
+        (S.statements.length || S.manual.length ? '' : '<button class="btn ghost" data-act="demo-on">Ver con datos de ejemplo</button>') + '</div></section>';
+    }
+    var h = '';
+    var est = rows.filter(function (r) { return r.estimated; });
+    if (est.length) {
+      var iss = {}; est.forEach(function (r) { iss[r.label] = 1; });
+      h += '<div class="alert warn"><b>Falta el resumen de ' + esc(Object.keys(iss).join(' y ')) + ' de este mes.</b><span>Las ' + est.length + (est.length === 1 ? ' cuota marcada' : ' cuotas marcadas') + ' como estimadas siguen el hilo desde el último resumen que cargaste. Cuando subas el real, se corrigen solas.</span></div>';
+    }
+    h += '<section class="hero"><small>Me deben por los gastos que dividí</small><b>' + both(t.owed, 'usd') + '</b></section>';
+    h += '<div class="stats"><div class="stat"><small>Total de los resúmenes</small><b>' + both(t.total) + '</b></div><div class="stat"><small>Mi parte</small><b>' + both(t.mine) + '</b></div></div>';
+    var ids = Object.keys(t.by).sort(function (a, b) { return t.by[b].ARS - t.by[a].ARS; });
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Quién me debe</h2><span>mitad y mitad</span></div>';
+    if (!ids.length) h += '<p class="muted small" style="padding:0 16px 16px">Todavía no dividiste ningún gasto este mes. Entrá a un gasto y elegí con quién lo dividís.</p>';
+    ids.forEach(function (id) {
+      var b = t.by[id];
+      h += '<details class="person"><summary><div><div class="person-name">' + esc(cname(id)) + '</div><div class="meta">' + b.rows.length + (b.rows.length === 1 ? ' gasto' : ' gastos') + '</div></div><div class="person-sub"><span class="row-amt">' + both(b) + '</span></div></summary><div class="list">';
+      b.rows.forEach(function (r) {
+        h += '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(r.desc) + '</div><div class="chips">' + (r.total ? '<span class="chip">Cuota ' + r.cuota + ' de ' + r.total + '</span>' : '') + '<span class="chip">' + esc(r.label) + '</span></div></div><div class="row-amt">' + money(r.share, r.currency) + '</div></div>';
+      });
+      h += '</div></details>';
+    });
+    h += '</section>';
+    var ending = rows.filter(function (r) { return r.total && r.cuota === r.total && r.status !== 'anulado'; });
+    if (ending.length) {
+      h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Terminan este mes</h2><span>última cuota</span></div><div class="list">' + ending.map(rowHTML).join('') + '</div></section>';
+    }
+    if (stmts.length) {
+      h += '<section class="card"><div class="sec-h"><h2>Resúmenes de este mes</h2></div>' + stmts.map(function (s) {
+        return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;border-top:1px solid var(--line);padding-top:12px"><div><b>' + esc(s.label) + '</b><div class="meta">Cierre ' + fshort(s.closeISO) + ' · vence ' + fshort(s.dueISO) + ' · ' + s.count + ' movimientos</div></div><div class="num"><b>' + money(s.total, 'ARS') + '</b>' + (s.totalUsd ? '<div class="meta">+ ' + money(s.totalUsd, 'USD') + '</div>' : '') + '</div></div>';
+      }).join('') + '</section>';
+    }
+    return h;
+  }
+
+  /* ----- Gastos ----- */
+  function filterRows(rows) {
+    var q = C.normDesc(ui.q || '');
+    return rows.filter(function (r) {
+      if (ui.filter === 'divididos' && !r.splitWith) return false;
+      if (ui.filter === 'cuotas' && !r.total) return false;
+      if (ui.filter === 'sindesc' && !(r.source === 'pdf' && !r.custom)) return false;
+      if (q && C.normDesc(r.desc + ' ' + r.descRaw).indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function glistHTML() {
+    rowIndex = {};
+    var rows = filterRows(C.entriesForMonth(S, ui.month));
+    if (!rows.length) return '<section class="card"><p class="muted">No hay gastos con ese filtro en ' + esc(C.monthLabel(ui.month)) + '.</p></section>';
+    var groups = {};
+    rows.forEach(function (r) { (groups[r.label] = groups[r.label] || []).push(r); });
+    return Object.keys(groups).map(function (g) {
+      var list = groups[g].sort(function (a, b) { return (b.amount - a.amount); });
+      var sum = list.reduce(function (a, r) { if (r.status !== 'anulado' && r.currency !== 'USD') a += r.amount; return a; }, 0);
+      return '<section class="card flat"><div class="group-h"><b>' + esc(g) + '</b><span>' + list.length + ' · ' + money(sum, 'ARS') + '</span></div><div class="list">' + list.map(rowHTML).join('') + '</div></section>';
+    }).join('');
+  }
+  function viewGastos() {
+    var f = [['todos', 'Todos'], ['divididos', 'Divididos'], ['cuotas', 'En cuotas'], ['sindesc', 'Sin descripción']];
+    return '<section class="card"><label class="f">Buscar<input type="text" id="gq" value="' + esc(ui.q) + '" placeholder="Comercio o descripción"></label>' +
+      '<div class="filters">' + f.map(function (x) { return '<button class="fchip" data-act="filter" data-f="' + x[0] + '" aria-pressed="' + (ui.filter === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></section>' +
+      '<div id="glist" style="display:flex;flex-direction:column;gap:16px">' + glistHTML() + '</div>';
+  }
+
+  /* ----- Contactos ----- */
+  function viewContactos() {
+    var h = '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Contactos</h2><button class="btn small" data-act="add-contact">Agregar</button></div>';
+    if (!S.contacts.length) h += '<p class="muted small" style="padding:0 16px 16px">Cargá a las personas con las que dividís gastos. Para cada una se guarda el alias y el mail.</p>';
+    S.contacts.forEach(function (c) {
+      var n = S.expenses.filter(function (e) { return e.splitWith === c.id; }).length + S.manual.filter(function (m) { return m.splitWith === c.id; }).length;
+      h += '<div class="row" style="cursor:default;align-items:center"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + '</div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div></div><div class="btns"><button class="btn ghost small" data-act="edit-contact" data-id="' + esc(c.id) + '">Editar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>';
+    });
+    return h + '</section>';
+  }
+
+  /* ----- Ajustes ----- */
+  function viewAjustes() {
+    return '<section class="card priv"><h2>Privacidad</h2>' +
+      '<p class="small muted">Qué hace la app con tus datos, en criollo.</p>' +
+      '<ul class="small"><li>El PDF se lee en tu navegador. No se sube a ningún servidor.</li>' +
+      '<li>De cada consumo se guarda fecha, comercio, cuota, monto y número de comprobante.</li>' +
+      '<li><b>No se guarda</b> el número de tarjeta, el DNI, el CUIL, el domicilio ni el número de cuenta.</li>' +
+      '<li>De cada contacto se guarda solo el alias y el mail.</li>' +
+      '<li>No hay inteligencia artificial en el medio: la lectura es por reglas, así que no tiene costo.</li></ul></section>' +
+      '<section class="card"><h2>Resúmenes que sé leer</h2><div class="chips"><span class="chip chip-good">Galicia Visa</span><span class="chip chip-good">Galicia Mastercard</span><span class="chip chip-good">Mercado Pago</span></div>' +
+      '<p class="small muted">Si un banco cambia el diseño del PDF, la app no guarda nada y te avisa. Mientras tanto podés cargar a mano.</p></section>' +
+      '<section class="card"><h2>Respaldo</h2><p class="small muted">Los datos viven en este navegador. Copiá el respaldo y guardalo donde quieras, o cargá uno que ya tengas.</p>' +
+      '<div class="btns"><button class="btn" data-act="copy-backup">Copiar respaldo</button><label class="btn ghost" style="cursor:pointer">Cargar respaldo<input type="file" id="bkFile" accept=".json,application/json" hidden></label></div>' +
+      '<textarea id="bkText" rows="4" hidden readonly></textarea></section>' +
+      '<section class="card"><h2>Datos</h2><div class="btns"><button class="btn ghost" data-act="demo-on">Ver datos de ejemplo</button><button class="btn danger" data-act="wipe-ask">Borrar todo</button></div><p class="err small" id="wipeBox" hidden></p></section>';
+  }
+
+
+  /* ----- Grupos ----- */
+  function gOf(id) { return S.groups.find(function (g) { return g.id === id; }); }
+  function mine() { return S.groups.filter(function (g) { return g.members.indexOf(S.whoami) >= 0; }); }
+  function whoSelect() {
+    return '<label class="f" style="max-width:260px">Quién soy (modo prueba)<select id="whoami">' + C.USERS.map(function (u) { return '<option value="' + u.id + '"' + (u.id === S.whoami ? ' selected' : '') + '>' + esc(u.name) + '</option>'; }).join('') + '</select></label>';
+  }
+  function netLine(net) {
+    if (net > 0) return '<small>Te deben</small><b>' + money(net, 'ARS') + '</b>';
+    if (net < 0) return '<small>Tenés que pagar</small><b>' + money(-net, 'ARS') + '</b>';
+    return '<small>Estás al día</small><b>' + money(0, 'ARS') + '</b>';
+  }
+  function viewGrupos() {
+    var g = ui.group && gOf(ui.group);
+    if (g && g.members.indexOf(S.whoami) < 0) g = null;
+    if (!g) ui.group = null;
+    var h = '<section class="card">' + whoSelect() + '<p class="small muted">Es un truco del prototipo: cambiá de usuario para ver el grupo como lo vería Pepito o Juancito. Con el backend de verdad, cada uno entra con su cuenta.</p></section>';
+    if (!g) {
+      var list = mine();
+      h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Mis grupos</h2><button class="btn small" data-act="g-new">Nuevo grupo</button></div>';
+      if (!list.length) h += '<p class="muted small" style="padding:0 16px 16px">Todavía no estás en ningún grupo. Armá uno para un viaje, una juntada o lo que sea, e invitá a los demás por mail.</p>';
+      else h += '<div class="list">' + list.map(function (x) {
+        var b = C.groupBalances(x), me = b.nets[S.whoami] / 100;
+        var tot = x.expenses.reduce(function (s, e) { return s + e.amount; }, 0);
+        return '<button class="row" data-act="g-open" data-id="' + esc(x.id) + '"><div class="row-main"><div class="row-title">' + esc(x.name) + '</div><div class="meta">' + x.members.map(C.userName).join(', ') + ' · ' + x.expenses.length + (x.expenses.length === 1 ? ' gasto' : ' gastos') + ' · ' + money(tot, 'ARS') + '</div></div><div class="row-amt' + (me < 0 ? ' owe' : '') + '">' + (me === 0 ? 'Al día' : (me > 0 ? '+' : '−') + money(Math.abs(me), 'ARS')) + '</div></button>';
+      }).join('') + '</div>';
+      return h + '</section>';
+    }
+    var b = C.groupBalances(g), me = b.nets[S.whoami], sug = C.settle(b.nets);
+    h += '<div class="btns"><button class="btn ghost small" data-act="g-back">← Mis grupos</button></div>';
+    h += '<section class="hero' + (me < 0 ? ' debt' : '') + '"><small>' + esc(g.name) + '</small>' + netLine(me / 100).replace('<small>', '<small style="font-size:15px;opacity:1">') + '</section>';
+    h += '<div class="btns"><button class="btn" data-act="g-exp">Cargar gasto</button><button class="btn ghost" data-act="g-pay">Registrar pago</button><button class="btn ghost" data-act="g-inv">Invitar</button></div>';
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Quién le paga a quién</h2><span>para quedar a mano</span></div>';
+    if (!sug.length) h += '<p class="muted small" style="padding:0 16px 16px">Está todo saldado.</p>';
+    else h += '<div class="list">' + sug.map(function (s, i) {
+      return '<div class="row" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">' + esc(C.userName(s.from)) + ' → ' + esc(C.userName(s.to)) + '</div></div><div class="row-amt">' + money(s.amount, 'ARS') + '</div><button class="btn small ghost" data-act="g-settle" data-i="' + i + '">Pagó</button></div>';
+    }).join('') + '</div>';
+    h += '</section>';
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Cada uno</h2><span>puso · le tocó · saldo</span></div><div class="list">' + g.members.map(function (m) {
+      var x = b.by[m];
+      return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(C.userName(m)) + (m === S.whoami ? ' (yo)' : '') + '</div><div class="meta">puso ' + money(x.paid, 'ARS') + ' · le tocó ' + money(x.owed, 'ARS') + '</div></div><div class="row-amt' + (x.net < 0 ? ' owe' : '') + '">' + (x.net > 0 ? '+' : x.net < 0 ? '−' : '') + money(Math.abs(x.net), 'ARS') + '</div></div>';
+    }).join('') + (g.pending && g.pending.length ? g.pending.map(function (e) { return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(e) + '</div><div class="meta">Invitado · todavía no se registró</div></div></div>'; }).join('') : '') + '</div></section>';
+    var items = g.expenses.map(function (e) { return { t: 'e', x: e }; }).concat((g.payments || []).map(function (p) { return { t: 'p', x: p }; }))
+      .sort(function (p, q) { return (q.x.date || '').localeCompare(p.x.date || '') || (q.x.ts || 0) - (p.x.ts || 0); });
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Todo lo cargado</h2><span>' + items.length + '</span></div>';
+    h += items.length ? '<div class="list">' + items.map(function (it) {
+      if (it.t === 'p') return '<button class="row" data-act="g-item" data-k="p" data-id="' + esc(it.x.id) + '"><div class="row-main"><div class="row-title">Pago: ' + esc(C.userName(it.x.from)) + ' → ' + esc(C.userName(it.x.to)) + '</div><div class="meta">' + fdate(it.x.date) + '</div></div><div class="row-amt">' + money(it.x.amount, 'ARS') + '</div></button>';
+      var e = it.x, all = e.splitAmong.length === g.members.length;
+      return '<button class="row" data-act="g-item" data-k="e" data-id="' + esc(e.id) + '"><div class="row-main"><div class="row-title">' + esc(e.desc) + '</div><div class="meta">Pagó ' + esc(C.userName(e.paidBy)) + ' · ' + fdate(e.date) + '</div><div class="chips"><span class="chip chip-split">' + (all ? 'Entre todos' : 'Entre ' + e.splitAmong.map(C.userName).join(', ')) + '</span></div></div><div class="row-amt">' + money(e.amount, 'ARS') + '</div></button>';
+    }).join('') + '</div>' : '<p class="muted small" style="padding:0 16px 16px">Todavía no se cargó nada.</p>';
+    return h + '</section>';
+  }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function userOpts(ids, sel) { return ids.map(function (id) { return '<option value="' + id + '"' + (id === sel ? ' selected' : '') + '>' + esc(C.userName(id)) + '</option>'; }).join(''); }
+
+  function groupExpenseModal(g, ex) {
+    var d = ex || { desc: '', amount: '', paidBy: S.whoami, splitAmong: g.members.slice(), date: today() };
+    var h = '<h2>' + (ex ? 'Editar gasto' : 'Cargar gasto') + '</h2><div class="form-grid">' +
+      '<label class="f wide">Qué fue<input type="text" id="geDesc" value="' + esc(d.desc) + '" placeholder="Ej. Cena, nafta, alquiler de la cabaña"></label>' +
+      '<label class="f">Monto (ARS)<input type="number" step="0.01" inputmode="decimal" id="geAmt" value="' + esc(d.amount) + '"></label>' +
+      '<label class="f">Fecha<input type="date" id="geDate" value="' + esc(d.date) + '"></label>' +
+      '<label class="f wide">Quién pagó<select id="gePaid">' + userOpts(g.members, d.paidBy) + '</select></label></div>' +
+      '<fieldset class="chkset"><legend>Se reparte en partes iguales entre</legend>' + g.members.map(function (m) {
+        return '<label class="chk"><input type="checkbox" class="geWho" value="' + m + '"' + (d.splitAmong.indexOf(m) >= 0 ? ' checked' : '') + '> ' + esc(C.userName(m)) + '</label>';
+      }).join('') + '</fieldset><p class="err small" id="geErr" hidden></p>' +
+      '<div class="btns"><button class="btn" id="geSave">Guardar</button><button class="btn ghost" id="geCancel">Cancelar</button></div>' +
+      (ex ? '<div id="geDel"><button class="btn danger small" id="geDelAsk">Quitar este gasto</button></div>' : '');
+    openModal(h, function (root) {
+      root.querySelector('#geCancel').onclick = closeModal;
+      root.querySelector('#geSave').onclick = function () {
+        var amt = parseFloat(String($('#geAmt').value).replace(',', '.')), desc = $('#geDesc').value.trim();
+        var who = Array.prototype.map.call(root.querySelectorAll('.geWho:checked'), function (x) { return x.value; });
+        var err = $('#geErr'), msg = '';
+        if (!desc) msg = 'Poné qué fue el gasto.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.'; else if (!who.length) msg = 'Elegí al menos una persona para repartir.';
+        if (msg) { err.textContent = msg; err.hidden = false; return; }
+        var o = { desc: desc, amount: C.r2(amt), paidBy: $('#gePaid').value, splitAmong: who, date: $('#geDate').value || today() };
+        if (ex) Object.assign(ex, o); else { o.id = C.uid(); o.ts = Date.now(); g.expenses.push(o); }
+        save(); closeModal(); render(); toast('Gasto guardado');
+      };
+      var del = root.querySelector('#geDelAsk');
+      if (del) del.onclick = function () {
+        $('#geDel').innerHTML = '<div class="alert bad"><span>¿Seguro? Se recalculan los saldos.</span><div class="btns"><button class="btn danger small" id="geYes">Sí, quitar</button><button class="btn ghost small" id="geNo">No</button></div></div>';
+        $('#geYes').onclick = function () { g.expenses = g.expenses.filter(function (x) { return x.id !== ex.id; }); save(); closeModal(); render(); };
+        $('#geNo').onclick = function () { groupExpenseModal(g, ex); };
+      };
+    });
+  }
+
+  function groupPaymentModal(g, pay, pre) {
+    var d = pay || pre || { from: S.whoami, to: g.members.filter(function (m) { return m !== S.whoami; })[0] || S.whoami, amount: '', date: today() };
+    var h = '<h2>' + (pay ? 'Editar pago' : 'Registrar pago') + '</h2><p class="small muted">Cuando alguien le pasa plata a otro para saldar, se anota acá y baja la deuda.</p><div class="form-grid">' +
+      '<label class="f">Quién pagó<select id="gpFrom">' + userOpts(g.members, d.from) + '</select></label>' +
+      '<label class="f">A quién<select id="gpTo">' + userOpts(g.members, d.to) + '</select></label>' +
+      '<label class="f">Monto (ARS)<input type="number" step="0.01" inputmode="decimal" id="gpAmt" value="' + esc(d.amount) + '"></label>' +
+      '<label class="f">Fecha<input type="date" id="gpDate" value="' + esc(d.date) + '"></label></div><p class="err small" id="gpErr" hidden></p>' +
+      '<div class="btns"><button class="btn" id="gpSave">Guardar</button><button class="btn ghost" id="gpCancel">Cancelar</button></div>' +
+      (pay ? '<div id="gpDel"><button class="btn danger small" id="gpDelAsk">Quitar este pago</button></div>' : '');
+    openModal(h, function (root) {
+      root.querySelector('#gpCancel').onclick = closeModal;
+      root.querySelector('#gpSave').onclick = function () {
+        var amt = parseFloat(String($('#gpAmt').value).replace(',', '.')), from = $('#gpFrom').value, to = $('#gpTo').value, err = $('#gpErr'), msg = '';
+        if (from === to) msg = 'Quien paga y quien recibe tienen que ser distintos.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.';
+        if (msg) { err.textContent = msg; err.hidden = false; return; }
+        var o = { from: from, to: to, amount: C.r2(amt), date: $('#gpDate').value || today() };
+        if (pay) Object.assign(pay, o); else { o.id = C.uid(); o.ts = Date.now(); g.payments = g.payments || []; g.payments.push(o); }
+        save(); closeModal(); render(); toast('Pago anotado');
+      };
+      var del = root.querySelector('#gpDelAsk');
+      if (del) del.onclick = function () {
+        g.payments = g.payments.filter(function (x) { return x.id !== pay.id; }); save(); closeModal(); render();
+      };
+    });
+  }
+
+  function groupInviteModal(g) {
+    var not = C.USERS.filter(function (u) { return g.members.indexOf(u.id) < 0; });
+    var h = '<h2>Invitar al grupo</h2><p class="small muted">Poné el mail de la persona. En el prototipo, si coincide con un usuario de prueba entra directo; si no, queda como invitado pendiente.</p>' +
+      '<label class="f wide">Mail<input type="email" id="giMail" placeholder="nombre@mail.com" inputmode="email" autocomplete="off"></label>' +
+      (not.length ? '<div class="small muted">Usuarios de prueba:</div><div class="btns">' + not.map(function (u) { return '<button class="btn ghost small" data-fill="' + esc(u.email) + '">' + esc(u.name) + '</button>'; }).join('') + '</div>' : '') +
+      '<p class="err small" id="giErr" hidden></p><div class="btns"><button class="btn" id="giSave">Invitar</button><button class="btn ghost" id="giCancel">Cancelar</button></div>';
+    openModal(h, function (root) {
+      root.querySelector('#giCancel').onclick = closeModal;
+      Array.prototype.forEach.call(root.querySelectorAll('[data-fill]'), function (b) { b.onclick = function () { $('#giMail').value = b.getAttribute('data-fill'); }; });
+      root.querySelector('#giSave').onclick = function () {
+        var m = $('#giMail').value.trim().toLowerCase(), err = $('#giErr');
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)) { err.textContent = 'Ese mail no parece válido.'; err.hidden = false; return; }
+        var u = C.USERS.find(function (x) { return x.email === m; });
+        if (u && g.members.indexOf(u.id) >= 0) { err.textContent = u.name + ' ya está en el grupo.'; err.hidden = false; return; }
+        if (u) g.members.push(u.id); else { g.pending = g.pending || []; if (g.pending.indexOf(m) < 0) g.pending.push(m); }
+        save(); closeModal(); render(); toast(u ? u.name + ' entró al grupo' : 'Invitación anotada');
+      };
+    });
+  }
+
+  function groupNewModal() {
+    openModal('<h2>Nuevo grupo</h2><label class="f wide">Nombre<input type="text" id="gnName" placeholder="Ej. Vacaciones en la costa"></label><p class="err small" id="gnErr" hidden></p><div class="btns"><button class="btn" id="gnSave">Crear</button><button class="btn ghost" id="gnCancel">Cancelar</button></div>', function (root) {
+      root.querySelector('#gnCancel').onclick = closeModal;
+      root.querySelector('#gnSave').onclick = function () {
+        var n = $('#gnName').value.trim(); if (!n) { var e = $('#gnErr'); e.textContent = 'Ponele un nombre al grupo.'; e.hidden = false; return; }
+        var g = { id: C.uid(), name: n, createdBy: S.whoami, members: [S.whoami], pending: [], expenses: [], payments: [] };
+        S.groups.push(g); ui.group = g.id; save(); closeModal(); render();
+      };
+    });
+  }
+
+  /* ----- Cargar ----- */
+  function viewCargar() {
+    var h = '';
+    if (!window.pdfjsLib && ui.mode !== 'manual') h += '<div class="alert bad"><b>No cargó el lector de PDF.</b><span>Si abriste esto desde el visor de la app de Claude, probá abriendo el link en el navegador del celular o de la compu (Chrome, Safari). Si ya estás en un navegador, revisá la conexión y recargá la página.</span></div>';
+    h += '<div class="seg" role="group" aria-label="Tipo de carga"><button data-act="mode" data-m="pdf" aria-pressed="' + (ui.mode === 'pdf') + '">Resumen en PDF</button><button data-act="mode" data-m="manual" aria-pressed="' + (ui.mode === 'manual') + '">Gasto a mano</button></div>';
+    if (ui.mode === 'manual') return h + manualCard();
+    h += '<label class="dz" id="dz"><b>' + (ui.busy ? 'Leyendo el resumen…' : 'Subí tus resúmenes en PDF') + '</b><span class="muted small">Galicia Visa, Galicia Mastercard o Mercado Pago. Podés subir varios juntos.</span><span class="btn small" style="margin-top:4px">Elegir archivos</span><input type="file" id="pdfFile" accept="application/pdf,.pdf" multiple></label>';
+    h += '<p class="small muted">Se lee en tu navegador, sin subir nada. No se guardan números de tarjeta ni DNI.</p>';
+    ui.reviews.forEach(function (rv, i) { h += reviewHTML(rv, i); });
+    return h;
+  }
+
+  function manualCard() {
+    var d = ui.mdraft || (ui.mdraft = { desc: '', amount: '', currency: 'ARS', startMonth: C.nowYM(), cuotas: false, cuotaActual: '', cuotaTotal: '', monthly: false, splitWith: '' });
+    return '<section class="card"><h2>Cargar un gasto a mano</h2><div class="form-grid" id="mform">' + manualFields(d, 'md') +
+      '</div><div class="btns"><button class="btn" data-act="manual-save">Guardar gasto</button></div><p class="err small" id="mErr" hidden></p></section>';
+  }
+  function manualFields(d, p) {
+    return '<label class="f wide">Descripción<input type="text" id="' + p + 'Desc" data-d="desc" value="' + esc(d.desc) + '" placeholder="Alquiler, préstamo, club…"></label>' +
+      '<label class="f">Monto<input type="number" inputmode="decimal" step="0.01" min="0" id="' + p + 'Amount" data-d="amount" value="' + esc(d.amount) + '" placeholder="0,00"></label>' +
+      '<label class="f">Moneda<select id="' + p + 'Cur" data-d="currency"><option value="ARS"' + (d.currency === 'ARS' ? ' selected' : '') + '>Pesos</option><option value="USD"' + (d.currency === 'USD' ? ' selected' : '') + '>Dólares</option></select></label>' +
+      '<label class="f">Empieza en (mes en que vence)<input type="month" id="' + p + 'Start" data-d="startMonth" value="' + esc(d.startMonth) + '"></label>' +
+      '<label class="f">Dividir con<select id="' + p + 'Split" data-d="splitWith">' + contactOptions(d.splitWith, true) + '</select></label>' +
+      '<label class="chk wide"><input type="checkbox" id="' + p + 'Monthly" data-d="monthly"' + (d.monthly ? ' checked' : '') + (d.cuotas ? ' disabled' : '') + '> Se repite todos los meses</label>' +
+      '<label class="chk wide"><input type="checkbox" id="' + p + 'Cuotas" data-d="cuotas"' + (d.cuotas ? ' checked' : '') + (d.monthly ? ' disabled' : '') + '> Es en cuotas</label>' +
+      (d.cuotas ? '<label class="f">Cuota de este mes<input type="number" inputmode="numeric" min="1" id="' + p + 'CA" data-d="cuotaActual" value="' + esc(d.cuotaActual) + '" placeholder="2"></label><label class="f">Total de cuotas<input type="number" inputmode="numeric" min="1" id="' + p + 'CT" data-d="cuotaTotal" value="' + esc(d.cuotaTotal) + '" placeholder="5"></label>' : '');
+  }
+  function readManual(d) {
+    var amount = parseFloat(String(d.amount).replace(',', '.'));
+    if (!d.desc.trim()) return { err: 'Poné una descripción.' };
+    if (!(amount > 0)) return { err: 'Poné un monto mayor a cero.' };
+    if (!/^\d{4}-\d{2}$/.test(d.startMonth)) return { err: 'Elegí el mes.' };
+    var m = { desc: d.desc.trim(), amount: C.r2(amount), currency: d.currency, startMonth: d.startMonth, cuotaActual: null, cuotaTotal: null, monthly: !!d.monthly, endMonth: null, splitWith: d.splitWith || null };
+    if (d.cuotas) {
+      var a = parseInt(d.cuotaActual, 10), t = parseInt(d.cuotaTotal, 10);
+      if (!(t > 0) || !(a > 0) || a > t) return { err: 'Revisá las cuotas: la actual no puede pasar del total.' };
+      m.cuotaActual = a; m.cuotaTotal = t; m.monthly = false;
+    }
+    return { m: m };
+  }
+
+  /* ---------- revisión de un resumen ---------- */
+  function effective(it, ch) {
+    var e = it.match ? S.expenses.find(function (x) { return x.id === it.match; }) : null;
+    if (!e && it.suggest && ch.acceptSuggest) e = S.expenses.find(function (x) { return x.id === it.suggest.expenseId; });
+    return {
+      e: e,
+      custom: ch.custom !== undefined ? ch.custom : (e ? e.custom : ''),
+      split: ch.splitWith !== undefined ? ch.splitWith : (e ? e.splitWith : null)
+    };
+  }
+  function itemBadge(it, e) {
+    var l = it.line, last = e ? e.entries[e.entries.length - 1] : null;
+    if (it.annul) return '<span class="chip chip-bad">Anula un gasto anterior</span>';
+    if (it.match && l.total) return '<span class="chip chip-good">Sigue · cuota ' + l.cuota + ' de ' + l.total + ' (antes ' + last.cuota + ')</span>' + (l.cuota === l.total ? '<span class="chip chip-end">Última</span>' : '');
+    if (it.match) { var diff = C.r2(l.amount - last.amount); return '<span class="chip chip-good">Todos los meses' + (Math.abs(diff) >= 0.01 ? ' · ' + (diff > 0 ? '+' : '−') + money(Math.abs(diff), l.currency) : ' · igual') + '</span>'; }
+    if (l.total) return '<span class="chip">' + (l.cuota > 1 ? 'Primera vez que la veo · ' : 'Nueva · ') + 'cuota ' + l.cuota + ' de ' + l.total + '</span>';
+    if (l.amount < 0) return '<span class="chip chip-good">Devolución</span>';
+    if (it.kind === 'recurrente') return '<span class="chip">Todos los meses (nuevo)</span>';
+    if (l.tag === 'transferencia') return '<span class="chip">Transferencia</span>';
+    return '<span class="chip">Nuevo</span>';
+  }
+
+  function reviewHTML(rv, ri) {
+    if (rv.status === 'saved') return '<section class="card"><div class="alert good"><b>' + esc(rv.parsed.label) + ' guardado.</b><span>' + esc(rv.name) + ' · ' + rv.savedCount + ' movimientos cargados.</span></div><div class="btns"><button class="btn ghost small" data-act="rv-discard" data-ri="' + ri + '">Cerrar</button></div></section>';
+    if (rv.error) return '<section class="card"><h3>' + esc(rv.name) + '</h3><div class="alert bad">' + esc(rv.error) + '</div><div class="btns"><button class="btn ghost small" data-act="rv-discard" data-ri="' + ri + '">Cerrar</button></div></section>';
+    var p = rv.parsed;
+    if (!p.issuer) return '<section class="card"><h3>' + esc(rv.name) + '</h3><div class="alert bad">' + esc(p.problems.join(' ')) + '</div><div class="btns"><button class="btn ghost small" data-act="rv-discard" data-ri="' + ri + '">Cerrar</button></div></section>';
+    var plan = p.closeISO ? C.planImport(S, p) : { items: [], netted: [], missing: [] };
+    rv.plan = plan;
+    var dup = p.closeISO && S.statements.some(function (s) { return s.issuer === p.issuer && s.closeISO === p.closeISO; });
+    var newer = p.closeISO && S.statements.some(function (s) { return s.issuer === p.issuer && s.closeISO > p.closeISO; });
+    var block = !p.ok || dup || newer;
+    var h = '<section class="card rv"><div class="rv-head"><h3>' + esc(p.label) + '</h3><span class="muted small">Cierre ' + fdate(p.closeISO) + ' · vence ' + fdate(p.dueISO) + '</span></div>';
+    h += '<div class="meta">' + esc(rv.name) + '</div>';
+    if (p.issuer === 'mp') {
+      var y0 = new Date().getFullYear();
+      h += '<label class="f" style="max-width:220px">Año del resumen<select class="rv-year" data-ri="' + ri + '">' + [y0 - 1, y0].map(function (y) { return '<option value="' + y + '"' + (y === p.year ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></label>';
+    }
+    if (p.ok) h += '<div class="alert good"><b>Cierra con el resumen.</b><span>Los consumos suman ' + money(p.sum.ars, 'ARS') + (p.sum.usd ? ' y ' + money(p.sum.usd, 'USD') : '') + ', igual que el total del PDF.</span></div>';
+    else {
+      h += '<div class="alert bad"><b>No pude leer bien este resumen, así que no guardo nada.</b><ul>' + p.problems.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul><span>Cargá los gastos a mano mientras se actualiza el lector.</span></div>';
+      h += '<details><summary class="small muted" style="cursor:pointer">Ver lo que leí</summary><div class="list">' + p.lines.map(function (l) { return '<div class="row" style="cursor:default;padding:8px 0"><div class="row-main"><span class="meta mono">' + esc(l.date + ' · ' + l.desc) + '</span></div><div class="row-amt small">' + money(l.amount, l.currency) + '</div></div>'; }).join('') + '</div></details>';
+    }
+    if (plan.gapMonths > 0 && !dup && !newer) h += '<div class="alert good"><b>Pasaron ' + plan.gapMonths + (plan.gapMonths === 1 ? ' mes' : ' meses') + ' sin resumen de esta tarjeta.</b><span>Las cuotas que ya seguías se ponen al día solas. Una cuota que no tenía vista antes entra como gasto nuevo.</span></div>';
+    if (dup) h += '<div class="alert warn">Este resumen ya está cargado (cierre ' + fdate(p.closeISO) + ').</div>';
+    else if (newer) h += '<div class="alert warn">Ya cargaste un resumen más nuevo de esta tarjeta. Cargalos en orden, del más viejo al más nuevo, para que las cuotas se sigan bien.</div>';
+
+    var asks = plan.items.map(function (it, i) { return it.suggest ? i : -1; }).filter(function (i) { return i >= 0; });
+    asks.forEach(function (i) {
+      var it = plan.items[i], ch = rv.choices[i] || (rv.choices[i] = {});
+      h += '<div class="ask"><span>¿<b>' + esc(it.line.desc) + '</b> es el mismo gasto que <b>' + esc(it.suggest.desc) + '</b> del resumen anterior?</span>';
+      if (ch.acceptSuggest === true) h += '<div class="alert good">Va como el mismo gasto, con su descripción y su división.</div><div class="btns"><button class="btn ghost small" data-act="rv-ask" data-ri="' + ri + '" data-ii="' + i + '" data-v="no">Mejor es otro</button></div>';
+      else if (ch.acceptSuggest === false) h += '<div class="alert">Va como gasto nuevo.</div><div class="btns"><button class="btn ghost small" data-act="rv-ask" data-ri="' + ri + '" data-ii="' + i + '" data-v="si">Sí, es el mismo</button></div>';
+      else h += '<div class="btns"><button class="btn small" data-act="rv-ask" data-ri="' + ri + '" data-ii="' + i + '" data-v="si">Sí, es el mismo</button><button class="btn ghost small" data-act="rv-ask" data-ri="' + ri + '" data-ii="' + i + '" data-v="no">No, es nuevo</button></div>';
+      h += '</div>';
+    });
+    if (plan.netted.length) h += '<div class="alert"><b>Se anulan entre sí</b><span>' + plan.netted.map(function (n) { return esc(n.desc) + ' (' + money(n.amount, n.currency) + ' cobrado y devuelto)'; }).join(', ') + '. No cuentan como deuda.</span></div>';
+    if (plan.missing.length) h += '<div class="alert warn"><b>Estas cuotas no aparecieron este mes</b><span>' + plan.missing.map(function (m) { return esc(m.desc) + ' (iba por la ' + m.cuota + ' de ' + m.total + ')'; }).join(', ') + '. Puede ser una cancelación anticipada.</span></div>';
+
+    var nCuotas = plan.items.filter(function (i) { return i.match && i.line.total; }).length;
+    var nRec = plan.items.filter(function (i) { return i.match && !i.line.total; }).length;
+    h += '<div class="chips"><span class="chip">' + plan.items.length + ' movimientos</span>' + (nCuotas ? '<span class="chip chip-good">' + nCuotas + ' cuotas que avanzan</span>' : '') + (nRec ? '<span class="chip chip-good">' + nRec + ' de todos los meses</span>' : '') + '</div>';
+
+    h += '<div class="card flat" style="border-radius:12px">' + plan.items.map(function (it, i) {
+      var ch = rv.choices[i] || (rv.choices[i] = {});
+      var ef = effective(it, ch);
+      var l = it.line;
+      var amt = '<div class="row-amt' + (l.amount < 0 ? ' neg' : '') + '">' + money(l.amount, l.currency) + '</div>';
+      if (it.annul) return '<div class="rv-item"><div class="rv-top"><div class="row-main"><div class="row-title">' + esc(l.desc) + '</div><div class="chips">' + itemBadge(it, ef.e) + '</div></div>' + amt + '</div></div>';
+      return '<div class="rv-item"><div class="rv-top"><div class="row-main"><div class="row-title mono" style="font-size:13px">' + esc(l.desc) + '</div><div class="chips">' + itemBadge(it, ef.e) + '<span class="chip">' + fshort(l.date) + '</span></div></div>' + amt + '</div>' +
+        '<div class="rv-ctrls"><input type="text" class="rv-custom" data-ri="' + ri + '" data-ii="' + i + '" value="' + esc(ef.custom) + '" placeholder="Qué es (ej. cubrecama)" aria-label="Descripción propia"><select class="rv-split" data-ri="' + ri + '" data-ii="' + i + '" aria-label="Dividir con">' + contactOptions(ef.split, true) + '</select></div></div>';
+    }).join('') + '</div>';
+    h += '<div class="btns"><button class="btn" data-act="rv-save" data-ri="' + ri + '"' + (block ? ' disabled' : '') + '>Guardar resumen</button><button class="btn ghost" data-act="rv-discard" data-ri="' + ri + '">Descartar</button></div></section>';
+    return h;
+  }
+
+  /* ---------- lectura de PDF ---------- */
+  function pdfToLines(file) {
+    if (!window.pdfjsLib) return Promise.reject(new Error('No pude cargar el lector de PDF. Revisá tu conexión y probá de nuevo.'));
+    try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (e) { /* ignorar */ }
+    return file.arrayBuffer().then(function (buf) {
+      return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    }).then(function (pdf) {
+      var chain = Promise.resolve(), lines = [];
+      for (var p = 1; p <= pdf.numPages; p++) {
+        (function (n) {
+          chain = chain.then(function () { return pdf.getPage(n); }).then(function (page) { return page.getTextContent(); }).then(function (tc) {
+            var items = tc.items.map(function (i) { return { str: i.str, x: i.transform[4], y: i.transform[5], w: i.width }; });
+            C.linesFromItems(items).forEach(function (l) { lines.push(l); });
+          });
+        })(p);
+      }
+      return chain.then(function () { return lines; });
+    });
+  }
+
+  function handleFiles(files) {
+    var list = Array.prototype.slice.call(files).filter(function (f) { return /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name); });
+    if (!list.length) { toast('Elegí un archivo PDF.'); return; }
+    if (S.demo) { S = C.emptyState(); save(); }
+    ui.busy++; render();
+    Promise.all(list.map(function (f) {
+      return pdfToLines(f).then(function (lines) {
+        return { name: f.name, lines: lines, parsed: C.parseStatement(lines), choices: [], status: 'review' };
+      }).catch(function (err) {
+        var m = String(err && err.message || err);
+        if (/password/i.test(m)) m = 'Este PDF tiene contraseña. Sacásela y probá de nuevo.';
+        else if (!/lector de PDF/.test(m)) m = 'No pude abrir este PDF. ' + m;
+        return { name: f.name, error: m, choices: [], status: 'error' };
+      });
+    })).then(function (rvs) {
+      rvs.sort(function (a, b) { return String(a.parsed && a.parsed.closeISO).localeCompare(String(b.parsed && b.parsed.closeISO)); });
+      ui.reviews = ui.reviews.concat(rvs); ui.busy--; render();
+    });
+  }
+
+  function reparse(ri, year) {
+    var rv = ui.reviews[ri]; rv.parsed = C.parseStatement(rv.lines, { year: year }); rv.choices = []; render();
+  }
+
+  function saveReview(ri) {
+    var rv = ui.reviews[ri], p = rv.parsed;
+    if (!p.ok) return;
+    var plan = C.planImport(S, p);
+    S = C.commitImport(S, p, plan, rv.choices);
+    save();
+    rv.status = 'saved'; rv.savedCount = plan.items.length + plan.netted.length * 2;
+    ui.month = p.payMonth;
+    toast('Resumen guardado');
+    render();
+  }
+
+  /* ---------- editar un gasto ---------- */
+  function rowModal(r, draft) {
+    var isPdf = r.source === 'pdf';
+    var e = isPdf ? S.expenses.find(function (x) { return x.id === r.expenseId; }) : null;
+    var mm = !isPdf ? S.manual.find(function (x) { return x.id === r.manualId; }) : null;
+    var d = draft;
+    var body;
+    if (isPdf && r.estimated) {
+      d = d || { custom: e.custom || '', splitWith: e.splitWith || '' };
+      body = '<div class="alert warn">Esta cuota es una estimación: ' + r.cuota + ' de ' + r.total + ', por los meses que pasaron desde el último resumen cargado. El monto es el de la cuota anterior.</div><p class="meta mono">' + esc(e.desc) + '</p>' +
+        '<div class="form-grid"><label class="f wide">Descripción propia<input type="text" id="eCustom" value="' + esc(d.custom) + '" placeholder="Qué es (ej. cubrecama)"></label>' +
+        '<label class="f wide">Dividir con (mitad y mitad)<select id="eSplit">' + contactOptions(d.splitWith, true) + '</select></label></div>';
+    } else if (isPdf) {
+      d = d || { custom: e.custom || '', splitWith: e.splitWith || '', amount: r.amount, cuota: r.cuota || '', total: r.total || '' };
+      body = '<p class="meta mono">' + esc(e.desc) + (r.ref ? ' · ' + esc(r.ref) : '') + '</p>' +
+        '<div class="form-grid"><label class="f wide">Descripción propia<input type="text" id="eCustom" value="' + esc(d.custom) + '" placeholder="Qué es (ej. cubrecama)"></label>' +
+        '<label class="f wide">Dividir con (mitad y mitad)<select id="eSplit">' + contactOptions(d.splitWith, true) + '</select></label>' +
+        '<label class="f">Monto de esta cuota<input type="number" step="0.01" inputmode="decimal" id="eAmount" value="' + esc(d.amount) + '"></label>' +
+        (e.kind === 'cuota' ? '<label class="f">Cuota<input type="number" min="1" id="eCuota" value="' + esc(d.cuota) + '"></label><label class="f">Total de cuotas<input type="number" min="1" id="eTotal" value="' + esc(d.total) + '"></label>' : '') + '</div>';
+    } else {
+      d = d || { desc: mm.desc, amount: mm.amount, currency: mm.currency, startMonth: mm.startMonth, cuotas: !!mm.cuotaTotal, cuotaActual: mm.cuotaActual || '', cuotaTotal: mm.cuotaTotal || '', monthly: !!mm.monthly, splitWith: mm.splitWith || '' };
+      body = '<div class="form-grid" id="eform">' + manualFields(d, 'ed') + '</div>';
+    }
+    openModal('<h2>' + esc(r.desc) + '</h2>' + body + '<p class="err small" id="eErr" hidden></p>' +
+      '<div class="btns"><button class="btn" id="eSave">Guardar cambios</button><button class="btn ghost" id="eCancel">Cancelar</button></div>' +
+      '<div id="eDel"><button class="btn danger small" id="eDelAsk">' + (isPdf ? 'Quitar este gasto' : 'Quitar este gasto a mano') + '</button></div>',
+      function (root) {
+        function collect() {
+          if (isPdf && r.estimated) return { custom: $('#eCustom').value, splitWith: $('#eSplit').value };
+          if (isPdf) return { custom: $('#eCustom').value, splitWith: $('#eSplit').value, amount: $('#eAmount').value, cuota: $('#eCuota') ? $('#eCuota').value : '', total: $('#eTotal') ? $('#eTotal').value : '' };
+          return collectManual('ed', d);
+        }
+        root.addEventListener('change', function (ev) {
+          if (ev.target.id === 'eSplit' || ev.target.id === 'edSplit') {
+            if (ev.target.value === '__new') {
+              var dr = collect(); dr.splitWith = '';
+              contactModal(null, function (c) { if (c) dr.splitWith = c.id; rowModal(r, dr); });
+            }
+          } else if (!isPdf && (ev.target.id === 'edCuotas' || ev.target.id === 'edMonthly')) {
+            rowModal(r, collect());
+          }
+        });
+        root.querySelector('#eCancel').onclick = closeModal;
+        root.querySelector('#eDelAsk').onclick = function () {
+          $('#eDel').innerHTML = '<div class="alert bad"><span>' + (isPdf ? 'Se borra de todos los meses.' : 'Se borra el gasto y todos sus meses.') + ' ¿Seguro?</span><div class="btns"><button class="btn danger small" id="eDelYes">Sí, borrar</button><button class="btn ghost small" id="eDelNo">No</button></div></div>';
+          $('#eDelYes').onclick = function () {
+            if (isPdf) S.expenses = S.expenses.filter(function (x) { return x.id !== e.id; }); else S.manual = S.manual.filter(function (x) { return x.id !== mm.id; });
+            save(); closeModal(); render(); toast('Gasto quitado');
+          };
+          $('#eDelNo').onclick = function () { rowModal(r, collect()); };
+        };
+        root.querySelector('#eSave').onclick = function () {
+          var v = collect(), err = $('#eErr');
+          if (isPdf && r.estimated) {
+            e.custom = v.custom.trim(); e.splitWith = v.splitWith || null;
+          } else if (isPdf) {
+            var amt = parseFloat(String(v.amount).replace(',', '.'));
+            if (isNaN(amt)) { err.textContent = 'El monto no es válido.'; err.hidden = false; return; }
+            var en = e.entries[r.entryIdx];
+            e.custom = v.custom.trim(); e.splitWith = v.splitWith || null; en.amount = C.r2(amt);
+            if (e.kind === 'cuota') {
+              var a = parseInt(v.cuota, 10), t = parseInt(v.total, 10);
+              if (!(a > 0) || !(t > 0) || a > t) { err.textContent = 'Revisá las cuotas: la actual no puede pasar del total.'; err.hidden = false; return; }
+              en.cuota = a; en.total = t;
+              if (r.entryIdx === e.entries.length - 1) { e.key.total = t; e.status = a >= t ? 'terminado' : 'activo'; }
+            }
+          } else {
+            var res = readManual(v);
+            if (res.err) { err.textContent = res.err; err.hidden = false; return; }
+            Object.assign(mm, res.m);
+          }
+          save(); closeModal(); render(); toast('Cambios guardados');
+        };
+      });
+  }
+
+  function collectManual(p, base) {
+    var g = function (s) { return $('#' + p + s); };
+    return {
+      desc: g('Desc').value, amount: g('Amount').value, currency: g('Cur').value, startMonth: g('Start').value, splitWith: g('Split').value,
+      monthly: g('Monthly').checked, cuotas: g('Cuotas').checked, cuotaActual: g('CA') ? g('CA').value : (base ? base.cuotaActual : ''), cuotaTotal: g('CT') ? g('CT').value : (base ? base.cuotaTotal : '')
+    };
+  }
+
+  /* ---------- respaldo ---------- */
+  function copyBackup() {
+    var json = JSON.stringify(S);
+    var ta = $('#bkText'); ta.hidden = false; ta.value = json; ta.focus(); ta.select();
+    var done = function () { toast('Respaldo copiado'); };
+    try {
+      navigator.clipboard.writeText(json).then(done, function () { toast('Seleccioná el texto y copialo'); });
+    } catch (e) { toast('Seleccioná el texto y copialo'); }
+  }
+
+  /* ---------- eventos ---------- */
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-act]'); if (!el) return;
+    var act = el.getAttribute('data-act');
+    if (act === 'scrim') { if (ev.target === el) closeModal(); return; }
+    var ri = +el.getAttribute('data-ri'), ii = +el.getAttribute('data-ii');
+    switch (act) {
+      case 'tab': setTab(el.getAttribute('data-tab')); break;
+      case 'g-new': groupNewModal(); break;
+      case 'g-open': ui.group = el.getAttribute('data-id'); render(); window.scrollTo(0, 0); break;
+      case 'g-back': ui.group = null; render(); break;
+      case 'g-exp': if (gOf(ui.group)) groupExpenseModal(gOf(ui.group)); break;
+      case 'g-pay': if (gOf(ui.group)) groupPaymentModal(gOf(ui.group)); break;
+      case 'g-inv': if (gOf(ui.group)) groupInviteModal(gOf(ui.group)); break;
+      case 'g-settle':
+        var gg = gOf(ui.group), sg = C.settle(C.groupBalances(gg).nets)[+el.getAttribute('data-i')];
+        if (sg) groupPaymentModal(gg, null, { from: sg.from, to: sg.to, amount: sg.amount, date: today() }); break;
+      case 'g-item':
+        var g2 = gOf(ui.group), id2 = el.getAttribute('data-id');
+        if (el.getAttribute('data-k') === 'e') groupExpenseModal(g2, g2.expenses.find(function (x) { return x.id === id2; }));
+        else groupPaymentModal(g2, (g2.payments || []).find(function (x) { return x.id === id2; }));
+        break;
+      case 'mode': ui.mode = el.getAttribute('data-m'); render(); break;
+      case 'filter': ui.filter = el.getAttribute('data-f'); render(); break;
+      case 'open-row': var r = rowIndex[el.getAttribute('data-key')]; if (r) rowModal(r); break;
+      case 'add-contact': contactModal(null); break;
+      case 'edit-contact': contactModal(S.contacts.find(function (c) { return c.id === el.getAttribute('data-id'); })); break;
+      case 'del-contact':
+        var cid = el.getAttribute('data-id'), c = S.contacts.find(function (x) { return x.id === cid; });
+        openModal('<h2>¿Quitar a ' + esc(c.alias) + '?</h2><p class="muted">Los gastos que dividías con esta persona quedan sin dividir.</p><div class="btns"><button class="btn danger" id="dcYes">Sí, quitar</button><button class="btn ghost" id="dcNo">No</button></div>', function (root) {
+          root.querySelector('#dcNo').onclick = closeModal;
+          root.querySelector('#dcYes').onclick = function () {
+            S.contacts = S.contacts.filter(function (x) { return x.id !== cid; });
+            S.expenses.forEach(function (e) { if (e.splitWith === cid) e.splitWith = null; });
+            S.manual.forEach(function (m) { if (m.splitWith === cid) m.splitWith = null; });
+            save(); closeModal(); render();
+          };
+        });
+        break;
+      case 'rv-ask': var ch = ui.reviews[ri].choices[ii] || (ui.reviews[ri].choices[ii] = {}); ch.acceptSuggest = el.getAttribute('data-v') === 'si'; delete ch.custom; delete ch.splitWith; render(); break;
+      case 'rv-save': saveReview(ri); break;
+      case 'rv-discard': ui.reviews.splice(ri, 1); render(); break;
+      case 'manual-save':
+        var d = ui.mdraft, res = readManual(d);
+        if (res.err) { var eb = $('#mErr'); eb.textContent = res.err; eb.hidden = false; break; }
+        if (S.demo) S = C.emptyState();
+        res.m.id = C.uid(); S.manual.push(res.m); save(); ui.mdraft = null; ui.month = res.m.startMonth; toast('Gasto guardado'); setTab('gastos'); break;
+      case 'copy-backup': copyBackup(); break;
+      case 'demo-on': S = C.demoState(); save(); ui.group = null; ui.month = '2026-11'; setTab('inicio'); break;
+      case 'wipe-demo': S = C.emptyState(); save(); ui.group = null; ui.month = null; ui.reviews = []; render(); break;
+      case 'wipe-ask':
+        var wb = $('#wipeBox'); wb.hidden = false;
+        wb.innerHTML = 'Se borran los resúmenes, los gastos y los contactos de este navegador. <span class="btns" style="margin-top:8px"><button class="btn danger small" data-act="wipe-yes">Sí, borrar todo</button><button class="btn ghost small" data-act="wipe-no">No</button></span>';
+        break;
+      case 'wipe-yes': S = C.emptyState(); save(); ui.group = null; ui.month = null; ui.reviews = []; ui.mdraft = null; toast('Todo borrado'); render(); break;
+      case 'wipe-no': $('#wipeBox').hidden = true; break;
+    }
+  });
+
+  document.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (t.classList.contains('rv-custom')) { var rv = ui.reviews[+t.getAttribute('data-ri')], i = +t.getAttribute('data-ii'); (rv.choices[i] || (rv.choices[i] = {})).custom = t.value; }
+    else if (t.id === 'gq') { ui.q = t.value; $('#glist').innerHTML = glistHTML(); }
+    else if (t.closest('#mform') && t.getAttribute('data-d')) { ui.mdraft[t.getAttribute('data-d')] = t.type === 'checkbox' ? t.checked : t.value; }
+  });
+
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.id === 'monthSel') { ui.month = t.value; render(); return; }
+    if (t.id === 'whoami') { S.whoami = t.value; save(); ui.group = null; render(); return; }
+    if (t.id === 'pdfFile') { handleFiles(t.files); t.value = ''; return; }
+    if (t.id === 'bkFile') {
+      var f = t.files[0]; if (!f) return;
+      f.text().then(function (txt) {
+        try { var o = JSON.parse(txt); if (!o || o.v !== 1 || !Array.isArray(o.expenses)) throw new Error('x'); S = norm(o); save(); ui.month = null; ui.group = null; render(); toast('Respaldo cargado'); }
+        catch (e) { toast('Ese archivo no es un respaldo válido'); }
+      });
+      t.value = ''; return;
+    }
+    if (t.classList.contains('rv-year')) { reparse(+t.getAttribute('data-ri'), +t.value); return; }
+    if (t.classList.contains('rv-split')) {
+      var rvi = +t.getAttribute('data-ri'), ii = +t.getAttribute('data-ii'), rv = ui.reviews[rvi];
+      if (t.value === '__new') { contactModal(null, function (c) { if (c) (rv.choices[ii] || (rv.choices[ii] = {})).splitWith = c.id; render(); }); return; }
+      (rv.choices[ii] || (rv.choices[ii] = {})).splitWith = t.value || null; return;
+    }
+    if (t.closest('#mform') && t.getAttribute('data-d')) {
+      var k = t.getAttribute('data-d');
+      if (k === 'splitWith' && t.value === '__new') { ui.mdraft.splitWith = ''; contactModal(null, function (c) { if (c) ui.mdraft.splitWith = c.id; render(); }); return; }
+      ui.mdraft[k] = t.type === 'checkbox' ? t.checked : t.value;
+      if (k === 'cuotas' || k === 'monthly') render();
+    }
+  });
+
+  /* arrastrar y soltar */
+  document.addEventListener('dragover', function (ev) { var dz = ev.target.closest && ev.target.closest('#dz'); if (dz) { ev.preventDefault(); dz.classList.add('over'); } });
+  document.addEventListener('dragleave', function (ev) { var dz = ev.target.closest && ev.target.closest('#dz'); if (dz) dz.classList.remove('over'); });
+  document.addEventListener('drop', function (ev) { var dz = ev.target.closest && ev.target.closest('#dz'); if (dz) { ev.preventDefault(); dz.classList.remove('over'); handleFiles(ev.dataTransfer.files); } });
+
+  window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (ALL_TABS.some(function (t) { return t[0] === h; }) && h !== ui.tab) setTab(h, false); });
+  var h0 = location.hash.slice(1); if (ALL_TABS.some(function (t) { return t[0] === h0; })) ui.tab = h0;
+  render();
+})();
+
+</script>
