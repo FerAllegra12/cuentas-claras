@@ -581,7 +581,17 @@ details.person .list { background: var(--bg); }
     var u = USERS.find(function (x) { return x.email === mail; }); if (!u) return null;
     var mine = (state.friendReqs || []).filter(function (r) { return r.from === owner && r.to === u.id; }).sort(function (x, y) { return (y.ts || 0) - (x.ts || 0); })[0];
     if (!mine) return null;
-    return mine.status === 'pending' || mine.status === 'rejected' ? mine.status : null;
+    return mine.status === 'pending' || mine.status === 'rejected' ? mine.status : null; // la más reciente manda
+  }
+  // relación de un contacto mío con la otra cuenta: 'plain' (no usa la app) | 'mutual' | 'pending' | 'rejected' | 'cut' (me sacó de sus contactos)
+  function contactLink(state, contact) {
+    var owner = contact.owner || 'u-fercho', mail = (contact.email || '').trim().toLowerCase();
+    var u = USERS.find(function (x) { return x.email === mail; }); if (!u || u.id === owner) return 'plain';
+    var me = USERS.find(function (x) { return x.id === owner; });
+    var mutual = (state.contacts || []).some(function (x) { return (x.owner || 'u-fercho') === u.id && !x.removed && me && (x.email || '').trim().toLowerCase() === me.email; });
+    if (mutual) return 'mutual';
+    var st = reqStatus(state, contact);
+    return st === 'pending' ? 'pending' : (st === 'rejected' ? 'rejected' : 'cut');
   }
   function incomingReqs(state) { return (state.friendReqs || []).filter(function (r) { return r.status === 'pending' && r.to === state.whoami; }); }
   // gente que está en alguno de mis grupos y no tengo como contacto (ni invitada)
@@ -1009,7 +1019,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
-    userOfContact: userOfContact, requestFor: requestFor, reqStatus: reqStatus, migrateRequests: migrateRequests, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
+    userOfContact: userOfContact, requestFor: requestFor, reqStatus: reqStatus, contactLink: contactLink, migrateRequests: migrateRequests, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
     groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
@@ -1312,7 +1322,7 @@ details.person .list { background: var(--bg); }
   function copyBtn(v) { return v ? '<button class="btn ghost small" data-act="copy-alias" data-v="' + esc(v) + '">Copiar alias</button>' : ''; }
   function contactAlias(c) { var u = C.userOfContact(S, c.id); return (u && C.transferAlias(S, u.id)) || ''; }
   function viewContactos() {
-    var act = C.activeContacts(S), gone = C.myContacts(S).filter(function (x) { return x.removed; }), str = C.groupStrangers(S), reqs = C.incomingReqs(S);
+    var act = C.activeContacts(S).filter(function (x) { return C.contactLink(S, x) !== 'cut'; }), cut = C.activeContacts(S).filter(function (x) { return C.contactLink(S, x) === 'cut'; }), gone = C.myContacts(S).filter(function (x) { return x.removed; }), str = C.groupStrangers(S), reqs = C.incomingReqs(S);
     var h = '';
     if (reqs.length) {
       h += '<section class="card flat todo"><div class="sec-h" style="padding:16px 16px 4px"><h2><span class="qmark">!</span> Solicitudes para ser contactos</h2></div><div class="list">' +
@@ -1327,11 +1337,12 @@ details.person .list { background: var(--bg); }
     function nOf(c) { return S.expenses.filter(function (e) { return e.splitWith === c.id; }).length + S.manual.filter(function (m) { return m.splitWith === c.id; }).length; }
     act.forEach(function (c) {
       var n = nOf(c), al = contactAlias(c);
-      h += '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + (C.reqStatus(S, c) === 'pending' ? ' <span class="chip chip-warn">Invitación pendiente</span>' : (C.reqStatus(S, c) === 'rejected' ? ' <span class="chip chip-bad">Rechazó tu solicitud</span>' : '')) + '</div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div>' + (al ? '<div class="meta">Alias para transferir: <b style="color:var(--fg)">' + esc(al) + '</b></div>' : '') + '</div><div class="btns" style="width:100%">' + copyBtn(al) + '<button class="btn ghost small" data-act="edit-contact" data-id="' + esc(c.id) + '">Editar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>';
+      h += '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + (C.contactLink(S, c) === 'pending' ? ' <span class="chip chip-warn">Invitación pendiente</span>' : (C.contactLink(S, c) === 'rejected' ? ' <span class="chip chip-bad">Rechazó tu solicitud</span>' : '')) + '</div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div>' + (al ? '<div class="meta">Alias para transferir: <b style="color:var(--fg)">' + esc(al) + '</b></div>' : '') + '</div><div class="btns" style="width:100%">' + copyBtn(al) + '<button class="btn ghost small" data-act="edit-contact" data-id="' + esc(c.id) + '">Editar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>';
     });
     h += '</section>';
-    if (gone.length) {
+    if (gone.length || cut.length) {
       h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 4px"><h2>Ya no son contactos</h2></div><p class="muted small" style="padding:0 16px 8px">Sus deudas siguen a la vista en "Quién me debe". Solo se cortó la conexión en vivo.</p><div class="list">' +
+        cut.map(function (c) { var n = nOf(c), al = contactAlias(c); return '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + ' <span class="chip">Te sacó de sus contactos</span></div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div></div><div class="btns" style="width:100%"><button class="btn small" data-act="reinvite" data-id="' + esc(c.id) + '">Volver a invitar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>'; }).join('') +
         gone.map(function (c) { var n = nOf(c), al = contactAlias(c); return '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + ' <span class="chip">Ya no es contacto</span></div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div>' + (al ? '<div class="meta">Alias para transferir: <b style="color:var(--fg)">' + esc(al) + '</b></div>' : '') + '</div><div class="btns" style="width:100%">' + copyBtn(al) + '<button class="btn ghost small" data-act="readd-contact" data-id="' + esc(c.id) + '">Volver a agregar</button></div></div>'; }).join('') + '</div></section>';
     }
     return h;
@@ -1953,23 +1964,24 @@ details.person .list { background: var(--bg); }
         var iu = C.USERS.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (!iu) break;
         var prev = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === iu.email; });
         if (prev) { delete prev.removed; } else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: iu.name, email: iu.email });
-        S.friendReqs = S.friendReqs || []; S.friendReqs.push({ id: C.uid(), from: S.whoami, to: iu.id, status: 'pending', ts: Date.now() });
+        var pc = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === iu.email; }); C.requestFor(S, pc);
         logGen('invitó a ' + iu.name + ' a ser contacto'); save(); toast('Invitación enviada a ' + iu.name); render(); break;
       case 'req-ok': case 'req-no':
         var rq = (S.friendReqs || []).find(function (x) { return x.id === el.getAttribute('data-id'); }); if (!rq) break;
         var fu = C.USERS.find(function (x) { return x.id === rq.from; }), me2 = C.USERS.find(function (x) { return x.id === rq.to; });
         var theirs = S.contacts.find(function (x) { return (x.owner || 'u-fercho') === rq.from && x.email.trim().toLowerCase() === me2.email; });
         if (act === 'req-ok') {
-          rq.status = 'accepted';
+          (S.friendReqs || []).forEach(function (x) { if (x.status === 'pending' && x.from === rq.from && x.to === rq.to) x.status = 'accepted'; });
           var mine2 = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === fu.email; });
           if (mine2) delete mine2.removed; else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: fu.name, email: fu.email });
           if (theirs) delete theirs.removed;
           logGen('aceptó la solicitud de ' + fu.name + ': ahora son contactos'); toast('Ahora ' + fu.name + ' es tu contacto');
         } else {
-          rq.status = 'rejected';
+          (S.friendReqs || []).forEach(function (x) { if (x.status === 'pending' && x.from === rq.from && x.to === rq.to) x.status = 'rejected'; });
           logGen('rechazó la solicitud de ' + fu.name); toast('Solicitud rechazada');
         }
         save(); render(); break;
+      case 'reinvite': var ric = C.myContacts(S).find(function (x) { return x.id === el.getAttribute('data-id'); }); if (ric && C.requestFor(S, ric)) { logGen('volvió a mandar la solicitud de contacto a ' + ric.alias); toast('Solicitud enviada a ' + ric.alias); save(); render(); } break;
       case 'readd-contact': var rc = S.contacts.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (rc) { delete rc.removed; logGen('volvió a agregar a ' + rc.alias + ' como contacto'); if (C.requestFor(S, rc)) { logGen('mandó solicitud de contacto a ' + rc.alias); toast('Le mandamos la solicitud a ' + rc.alias); } save(); render(); } break;
       case 'del-contact':
         var cid = el.getAttribute('data-id'), c = S.contacts.find(function (x) { return x.id === cid; });
