@@ -551,6 +551,31 @@ details.person .list { background: var(--bg); }
   // cada contacto es de una cuenta (owner); los anteriores a este cambio son de Fercho
   function myContacts(state) { return (state.contacts || []).filter(function (x) { return (x.owner || 'u-fercho') === state.whoami; }); }
   function activeContacts(state) { return myContacts(state).filter(function (x) { return !x.removed; }); }
+  // si el mail del contacto es de un usuario de la app, le manda la solicitud (si hace falta)
+  function requestFor(state, contact) {
+    var owner = contact.owner || 'u-fercho', mail = (contact.email || '').trim().toLowerCase();
+    var u = USERS.find(function (x) { return x.email === mail; });
+    if (!u || u.id === owner || contact.removed) return false;
+    var me = USERS.find(function (x) { return x.id === owner; });
+    var mutual = (state.contacts || []).some(function (x) { return (x.owner || 'u-fercho') === u.id && !x.removed && me && (x.email || '').trim().toLowerCase() === me.email; });
+    if (mutual) { delete contact.invited; return false; }
+    state.friendReqs = state.friendReqs || [];
+    if (state.friendReqs.some(function (r) { return r.status === 'pending' && r.from === owner && r.to === u.id; })) { contact.invited = true; return false; }
+    state.friendReqs.push({ id: uid(), from: owner, to: u.id, status: 'pending', ts: Date.now() });
+    contact.invited = true;
+    return true;
+  }
+  // arregla estados viejos: contactos que son usuarios y nunca tuvieron solicitud
+  function migrateRequests(state) {
+    (state.contacts || []).forEach(function (ct) {
+      var owner = ct.owner || 'u-fercho', mail = (ct.email || '').trim().toLowerCase();
+      var u = USERS.find(function (x) { return x.email === mail; });
+      if (!u || u.id === owner || ct.removed) return;
+      var any = (state.friendReqs || []).some(function (r) { return (r.from === owner && r.to === u.id) || (r.from === u.id && r.to === owner); });
+      if (!any) requestFor(state, ct);
+    });
+    return state;
+  }
   function incomingReqs(state) { return (state.friendReqs || []).filter(function (r) { return r.status === 'pending' && r.to === state.whoami; }); }
   // gente que está en alguno de mis grupos y no tengo como contacto (ni invitada)
   function groupStrangers(state) {
@@ -977,7 +1002,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
-    userOfContact: userOfContact, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
+    userOfContact: userOfContact, requestFor: requestFor, migrateRequests: migrateRequests, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
     groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
@@ -1015,6 +1040,8 @@ details.person .list { background: var(--bg); }
     if (!Array.isArray(o.groups)) o.groups = [];
     if (!Array.isArray(o.pay)) o.pay = [];
     if (!o.whoami) o.whoami = 'u-fercho';
+    if (!Array.isArray(o.friendReqs)) o.friendReqs = [];
+    C.migrateRequests(o);
     return o;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignorar */ } }
@@ -1090,6 +1117,7 @@ details.person .list { background: var(--bg); }
             if (old) { c = old; c.alias = alias; c.transfer = tr; delete c.removed; logGen('volvió a agregar a ' + alias + ' como contacto'); }
             else { c = { id: C.uid(), owner: S.whoami, alias: alias, email: mail, transfer: tr }; S.contacts.push(c); }
           }
+          var sent = C.requestFor(S, c); if (sent) { logGen('mandó solicitud de contacto a ' + c.alias); toast('Le mandamos la solicitud a ' + c.alias); }
           S.demo = false; save(); closeModal(); if (done) done(c); else render();
         };
       });
@@ -1936,7 +1964,7 @@ details.person .list { background: var(--bg); }
           logGen('rechazó la solicitud de ' + fu.name); toast('Solicitud rechazada');
         }
         save(); render(); break;
-      case 'readd-contact': var rc = S.contacts.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (rc) { delete rc.removed; logGen('volvió a agregar a ' + rc.alias + ' como contacto'); save(); render(); } break;
+      case 'readd-contact': var rc = S.contacts.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (rc) { delete rc.removed; logGen('volvió a agregar a ' + rc.alias + ' como contacto'); if (C.requestFor(S, rc)) { logGen('mandó solicitud de contacto a ' + rc.alias); toast('Le mandamos la solicitud a ' + rc.alias); } save(); render(); } break;
       case 'del-contact':
         var cid = el.getAttribute('data-id'), c = S.contacts.find(function (x) { return x.id === cid; });
         openModal('<h2>¿Quitar a ' + esc(c.alias) + '?</h2><p class="muted">No se borra nada: sus deudas y los gastos que dividías siguen a la vista con este nombre. Lo que se corta es la conexión en vivo con ella. Si la volvés a agregar con el mismo mail, se reconecta sola.</p><div class="btns"><button class="btn danger" id="dcYes">Sí, quitar</button><button class="btn ghost" id="dcNo">No</button></div>', function (root) {
