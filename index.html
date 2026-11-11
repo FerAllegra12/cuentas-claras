@@ -126,6 +126,10 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .settled b { font-family: var(--font-display); font-size: 17px; }
 .settled .meta { color: inherit; opacity: .9; }
 .settled > div { flex: 1; min-width: 0; }
+.nest { margin-left: 14px; border-left: 3px solid var(--accent); }
+.row.pend { background: var(--warn-soft); }
+.gain { color: var(--good); font-weight: 600; }
+.owe { color: var(--bad); font-weight: 600; }
 .settled .chev { width: 20px; height: 20px; flex: none; transition: transform .15s; }
 .settled[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .list.old { background: color-mix(in srgb, var(--surface) 92%, var(--muted)); }
@@ -235,7 +239,7 @@ details.person .list { background: var(--bg); }
   };
   var AMT = '-?\\d{1,3}(?:\\.\\d{3})*,\\d{2}';
   var AMTP = '\\d{1,3}(?:\\.\\d{3})*,\\d{2}';
-  var LABELS = { 'galicia-visa': 'Galicia Visa', 'galicia-mc': 'Galicia Mastercard', mp: 'Mercado Pago', manual: 'A mano' };
+  var LABELS = { 'galicia-visa': 'Galicia Visa', 'galicia-mc': 'Galicia Mastercard', mp: 'Mercado Pago', manual: 'Cargado manualmente' };
 
   function strip(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function mesIdx(s) { var v = MESES[strip(s).toLowerCase()]; return v === undefined ? -1 : v; }
@@ -430,7 +434,7 @@ details.person .list { background: var(--bg); }
   }
 
   /* ---------- estado y conciliación ---------- */
-  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [] }; }
+  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [], pay: [] }; }
 
   function stmtOf(state, id) { return state.statements.find(function (s) { return s.id === id; }); }
   function lastEntry(e) { return e.entries[e.entries.length - 1]; }
@@ -523,6 +527,29 @@ details.person .list { background: var(--bg); }
     return { items: items, netted: net.netted, missing: missing, prevStmtId: prev ? prev.id : null, gapMonths: gap };
   }
 
+  // mapa contacto -> usuario: coinciden por mail
+  function userOfContact(state, contactId) {
+    var c = (state.contacts || []).find(function (x) { return x.id === contactId; });
+    if (!c || !c.email) return null;
+    var m = c.email.trim().toLowerCase();
+    return USERS.find(function (u) { return u.email === m; }) || null;
+  }
+  function sharedGroups(state, userId) {
+    return (state.groups || []).filter(function (g) { return g.members.indexOf(state.whoami) >= 0 && g.members.indexOf(userId) >= 0; });
+  }
+  function fmtARS(n) { return '$ ' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  // un gasto de tarjeta dividido con alguien se suma al grupo elegido (mitad y mitad)
+  function pushToGroup(s, e, entry, i) {
+    var u = userOfContact(s, e.splitWith), g = (s.groups || []).find(function (x) { return x.id === e.groupId; });
+    if (!u || !g || g.members.indexOf(u.id) < 0 || g.members.indexOf(s.whoami) < 0) return;
+    if (entry.currency === 'USD' || !(entry.amount > 0)) return;
+    var src = e.id + ':' + entry.stmtId;
+    if (g.expenses.some(function (x) { return x.src === src; })) return;
+    var desc = e.custom || e.desc;
+    g.expenses.push({ id: uid(), desc: desc, amount: entry.amount, paidBy: s.whoami, splitAmong: [s.whoami, u.id], date: entry.date || '', ts: Date.now() + (i || 0), src: src });
+    g.activity = g.activity || [];
+    g.activity.push({ id: uid(), ts: Date.now() + (i || 0), who: s.whoami, text: 'cargó "' + desc + '" por ' + fmtARS(entry.amount) + ' desde un resumen de tarjeta, entre ' + userName(s.whoami) + ' y ' + u.name });
+  }
   function commitImport(state, parsed, plan, choices) {
     var s = clone(state);
     var stmt = {
@@ -541,20 +568,25 @@ details.person .list { background: var(--bg); }
       var viaSuggest = false;
       if (!eid && it.suggest && ch.acceptSuggest) { eid = it.suggest.expenseId; viaSuggest = true; }
       var e = eid ? byId(eid) : null;
+      var made = null;
       if (e) {
         e.entries.push(entry);
         if (viaSuggest) { e.kind = 'recurrente'; e.key.aliases = (e.key.aliases || []).concat([normDesc(line.desc)]); }
         if (ch.custom != null) e.custom = ch.custom;
         if (ch.splitWith !== undefined) e.splitWith = ch.splitWith;
         if (line.total && line.cuota >= line.total) e.status = 'terminado';
+        if (ch.groupId !== undefined && ch.groupId) e.groupId = ch.groupId;
+        made = e;
       } else {
-        s.expenses.push({
+        made = {
           id: uid(), issuer: parsed.issuer, kind: it.kind, desc: line.desc, custom: ch.custom || '',
           key: { ref: line.ref, date: line.date, total: line.total, aliases: [] },
-          splitWith: ch.splitWith || null, tag: line.tag || null,
+          splitWith: ch.splitWith || null, groupId: ch.groupId || null, tag: line.tag || null,
           status: (line.total && line.cuota >= line.total) ? 'terminado' : 'activo', entries: [entry]
-        });
+        };
+        s.expenses.push(made);
       }
+      if (made && made.groupId && made.splitWith) pushToGroup(s, made, entry, i);
     });
     return s;
   }
@@ -626,7 +658,7 @@ details.person .list { background: var(--bg); }
         rows.push({
           source: 'pdf', expenseId: e.id, entryIdx: idx, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
           desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: e.kind, tag: e.tag, cuota: en.cuota, total: en.total,
-          amount: en.amount, currency: en.currency, splitWith: e.splitWith, status: e.status, date: en.date, ref: en.ref
+          amount: en.amount, currency: en.currency, splitWith: e.splitWith, groupId: e.groupId || null, status: e.status, date: en.date, ref: en.ref
         });
       });
     });
@@ -647,7 +679,9 @@ details.person .list { background: var(--bg); }
       if (r.status === 'anulado') return;
       var cur = r.currency === 'USD' ? 'USD' : 'ARS';
       t.total[cur] += r.amount;
-      if (r.splitWith) {
+      if (r.splitWith && r.groupId) {
+        t.mine[cur] += r.amount - r2(r.amount / 2); // la otra mitad se cobra en el grupo
+      } else if (r.splitWith) {
         var other = r2(r.amount / 2);
         t.owed[cur] += other; t.mine[cur] += r.amount - other;
         var b = t.by[r.splitWith] = t.by[r.splitWith] || { ARS: 0, USD: 0, rows: [] };
@@ -680,6 +714,7 @@ details.person .list { background: var(--bg); }
       splitCents(c, e.splitAmong).forEach(function (sh) { if (b[sh.id]) b[sh.id].owed += sh.cents; });
     });
     (g.payments || []).forEach(function (p) {
+      if (p.status === 'pending') return;
       var c = cents(p.amount);
       if (b[p.from]) b[p.from].adj += c;
       if (b[p.to]) b[p.to].adj -= c;
@@ -710,26 +745,82 @@ details.person .list { background: var(--bg); }
     return out;
   }
 
-  // Historial por "épocas": cada vez que un pago deja a todos en cero, todo lo anterior se cierra.
+  /* ---------- quién me debe: una fila por persona ---------- */
+  function personKey(state, contactId) {
+    var u = userOfContact(state, contactId);
+    return u ? u.id : 'c:' + contactId;
+  }
+  function personName(state, key) {
+    if (key.indexOf('c:') === 0) { var c = (state.contacts || []).find(function (x) { return x.id === key.slice(2); }); return c ? c.alias : 'Sin contacto'; }
+    return userName(key);
+  }
+  // total > 0: la persona te debe; total < 0: le debés vos (en pesos)
+  function personDebts(state, me, month) {
+    var people = {};
+    function P(key) { return people[key] || (people[key] = { key: key, name: personName(state, key), total: 0, groups: [], personal: [], paid: [] }); }
+    (state.groups || []).forEach(function (g) {
+      if (g.members.indexOf(me) < 0) return;
+      var nets = groupBalances(g).nets;
+      settle(nets).forEach(function (t) {
+        var other = t.from === me ? t.to : (t.to === me ? t.from : null);
+        if (!other) return;
+        var signed = t.to === me ? t.amount : -t.amount;
+        var p = P(other); p.total += signed;
+        // detalle: lo del tramo actual donde participa esa persona
+        var cur = groupEpochs(g)[0], items = [];
+        cur.items.forEach(function (it) {
+          if (it.t === 'e') {
+            var e = it.x, mine = 0;
+            if (e.paidBy === me && e.splitAmong.indexOf(other) >= 0) mine = splitCents(cents(e.amount), e.splitAmong).find(function (x) { return x.id === other; }).cents / 100;
+            else if (e.paidBy === other && e.splitAmong.indexOf(me) >= 0) mine = -splitCents(cents(e.amount), e.splitAmong).find(function (x) { return x.id === me; }).cents / 100;
+            if (mine) items.push({ desc: e.desc, amount: mine, date: e.date });
+          } else if (it.x.status !== 'pending') {
+            var pa = it.x;
+            if (pa.from === other && pa.to === me) items.push({ desc: 'Pago: te pagó', amount: -pa.amount, date: pa.date, pay: true });
+            else if (pa.from === me && pa.to === other) items.push({ desc: 'Pago: le pagaste', amount: pa.amount, date: pa.date, pay: true });
+          }
+        });
+        p.groups.push({ groupId: g.id, name: g.name, amount: signed, items: items });
+      });
+    });
+    var rows = state.manual ? entriesForMonth(state, month) : [];
+    rows.forEach(function (r) {
+      if (!r.splitWith || r.groupId || r.status === 'anulado' || r.currency === 'USD' || !(r.amount > 0)) return;
+      var p = P(personKey(state, r.splitWith)), share = r2(r.amount / 2);
+      p.total += share;
+      p.personal.push({ desc: r.desc, label: r.label, amount: share, cuota: r.cuota, totalCuotas: r.total, estimated: !!r.estimated });
+    });
+    (state.pay || []).forEach(function (x) { var p = P(x.key); p.total -= x.amount; p.paid.push(x); });
+    var out = Object.keys(people).map(function (k) { people[k].total = r2(people[k].total); return people[k]; })
+      .filter(function (p) { return p.total !== 0 || p.groups.length || p.personal.length; });
+    out.sort(function (a, b) { return b.total - a.total; });
+    return out;
+  }
+
+  // Historial por "épocas": cada vez que un pago confirmado deja a todos en cero, todo lo anterior se cierra.
   function groupEpochs(g) {
     var all = g.expenses.map(function (e) { return { t: 'e', x: e }; }).concat((g.payments || []).map(function (p) { return { t: 'p', x: p }; }))
       .sort(function (a, b) { return (a.x.ts || 0) - (b.x.ts || 0); });
-    var epochs = [], cur = [], ex = [], pa = [], sawExpense = false;
+    var epochs = [], cur = [], ex = [], pa = [];
     all.forEach(function (it) {
       cur.push(it);
-      if (it.t === 'e') { ex.push(it.x); sawExpense = true; } else pa.push(it.x);
-      if (it.t === 'p' && sawExpense) {
+      if (it.t === 'e') ex.push(it.x); else pa.push(it.x);
+      if (it.t === 'p' && it.x.status !== 'pending' && ex.length) {
         var nets = groupBalances({ members: g.members, expenses: ex, payments: pa }).nets;
         if (Object.keys(nets).every(function (k) { return nets[k] === 0; })) {
-          epochs.push({ items: cur, closer: it.x }); cur = [];
+          epochs.push({ items: cur, closer: it.x }); cur = []; ex = []; pa = [];
         }
       }
     });
     epochs.push({ items: cur, closer: null });
     var byDate = function (a, b) { return (b.x.date || '').localeCompare(a.x.date || '') || (b.x.ts || 0) - (a.x.ts || 0); };
     epochs.forEach(function (ep) {
-      // el pago que cierra va en la franja, no en la lista
-      ep.items = ep.items.filter(function (it) { return !(ep.closer && it.t === 'p' && it.x.id === ep.closer.id); }).sort(byDate);
+      if (!ep.closer) { ep.closers = []; ep.items.sort(byDate); return; }
+      // pagos de cierre: los pagos confirmados hechos después del último gasto del tramo
+      var lastE = 0; ep.items.forEach(function (it) { if (it.t === 'e') lastE = Math.max(lastE, it.x.ts || 0); });
+      ep.closers = ep.items.filter(function (it) { return it.t === 'p' && it.x.status !== 'pending' && (it.x.ts || 0) > lastE; }).map(function (it) { return it.x; });
+      var ids = {}; ep.closers.forEach(function (p) { ids[p.id] = 1; });
+      ep.items = ep.items.filter(function (it) { return !(it.t === 'p' && ids[it.x.id]); }).sort(byDate);
     });
     return epochs.reverse(); // la primera es la actual
   }
@@ -760,7 +851,7 @@ details.person .list { background: var(--bg); }
     var s = emptyState(); s.demo = true;
     var vale = { id: 'c1', alias: 'Vale', email: 'vale@ejemplo.com' };
     var mati = { id: 'c2', alias: 'Mati', email: 'mati@ejemplo.com' };
-    s.contacts = [vale, mati];
+    s.contacts = [vale, mati, { id: 'c3', alias: 'Pepito', email: 'pepito@prueba.com' }, { id: 'c4', alias: 'Juancito', email: 'juancito@prueba.com' }];
     var oct = { id: 's-oct', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-01', dueISO: '2026-10-09', payMonth: '2026-10', total: 0, totalUsd: 0, netted: [], count: 3 };
     var nov = { id: 's-nov', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-29', dueISO: '2026-11-11', payMonth: '2026-11', total: 214000, totalUsd: 0, netted: [], count: 5 };
     var mpn = { id: 's-mp', issuer: 'mp', label: LABELS.mp, closeISO: '2026-10-27', dueISO: '2026-11-02', payMonth: '2026-11', total: 61500, totalUsd: 0, netted: [], count: 3 };
@@ -771,7 +862,7 @@ details.person .list { background: var(--bg); }
     function en(stmt, cuota, total, amount, ref, date, d) { return { stmtId: stmt, cuota: cuota, total: total, amount: amount, currency: 'ARS', ref: ref, date: date, descRaw: d }; }
     exp('galicia-visa', 'cuota', 'COMERCIO EJEMPLO SA', 'Cubrecama', 'c1', { ref: '000412', date: '2026-06-12', total: 6, aliases: [] },
       [en('s-oct', 4, 6, 18500, '000412', '2026-06-12', 'COMERCIO EJEMPLO SA'), en('s-nov', 5, 6, 18500, '000412', '2026-06-12', 'COMERCIO EJEMPLO SA')]);
-    exp('galicia-visa', 'cuota', 'TIENDA DEMO SRL', 'Zapatillas', null, { ref: '000977', date: '2026-08-02', total: 12, aliases: [] },
+    exp('galicia-visa', 'cuota', 'TIENDA DEMO SRL', 'Zapatillas', 'c3', { ref: '000977', date: '2026-08-02', total: 12, aliases: [] },
       [en('s-oct', 2, 12, 24300, '000977', '2026-08-02', 'TIENDA DEMO SRL'), en('s-nov', 3, 12, 24300, '000977', '2026-08-02', 'TIENDA DEMO SRL')]);
     exp('galicia-visa', 'recurrente', 'INTERNET DEMO 000000001234567', 'Internet', 'c2', { ref: '000001', date: '2026-10-16', total: null, aliases: [] },
       [en('s-oct', null, null, 71200, '000001', '2026-09-16', 'INTERNET DEMO'), en('s-nov', null, null, 74800, '000001', '2026-10-16', 'INTERNET DEMO')]);
@@ -846,6 +937,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
+    userOfContact: userOfContact, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
     groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
@@ -881,6 +973,7 @@ details.person .list { background: var(--bg); }
   }
   function norm(o) {
     if (!Array.isArray(o.groups)) o.groups = [];
+    if (!Array.isArray(o.pay)) o.pay = [];
     if (!o.whoami) o.whoami = 'u-fercho';
     return o;
   }
@@ -997,7 +1090,7 @@ details.person .list { background: var(--bg); }
     if (r.estimated) chips.push('<span class="chip chip-warn">Estimada</span>');
     if (r.kind === 'recurrente') chips.push('<span class="chip">Todos los meses</span>');
     if (r.tag === 'transferencia') chips.push('<span class="chip">Transferencia</span>');
-    if (r.splitWith) chips.push('<span class="chip chip-split">÷ ' + esc(cname(r.splitWith)) + '</span>');
+    if (r.splitWith) chips.push('<span class="chip chip-split">÷ ' + esc(cname(r.splitWith)) + (r.groupId ? ' · en grupo ' + esc((gOf(r.groupId) || {}).name || '') : '') + '</span>');
     if (r.status === 'anulado') chips.push('<span class="chip chip-bad">Anulado</span>');
     var sub = (r.source === 'pdf' && r.custom && r.descRaw !== r.custom) ? '<div class="meta mono">' + esc(r.descRaw) + '</div>' : '';
     return '<button class="row" data-act="open-row" data-key="' + rowKey(r) + '"><div class="row-main"><div class="row-title"' + (r.status === 'anulado' ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(r.desc) + '</div>' + sub +
@@ -1067,12 +1160,49 @@ details.person .list { background: var(--bg); }
       return true;
     });
   }
+  function personListHTML() {
+    var ppl = C.personDebts(S, S.whoami, ui.month);
+    if (!ppl.length) return '<section class="card"><p class="muted">Nadie te debe nada ni le debés a nadie. Cuando dividas un gasto con alguien, o cargues gastos en un grupo, aparece acá.</p></section>';
+    var owedMe = 0, iOwe = 0; ppl.forEach(function (p) { if (p.total > 0) owedMe += p.total; else iOwe += -p.total; });
+    var h = '<section class="card"><div class="stats"><div class="stat"><small>Te deben</small><b class="gain">' + money(owedMe, 'ARS') + '</b></div><div class="stat"><small>Debés</small><b class="' + (iOwe ? 'owe' : '') + '">' + money(iOwe, 'ARS') + '</b></div></div><p class="meta">Suma todos tus grupos y las cuentas divididas de tus resúmenes (' + esc(cap(C.monthLabel(ui.month))) + '). Los pagos ya están descontados.</p></section>';
+    h += '<section class="card flat">' + ppl.map(function (p) {
+      var amt = p.total > 0 ? '<span class="gain">te debe ' + money(p.total, 'ARS') + '</span>' : (p.total < 0 ? '<span class="owe">le debés ' + money(-p.total, 'ARS') + '</span>' : '<span class="muted">al día</span>');
+      var d = '';
+      p.groups.forEach(function (g) {
+        d += '<button class="row" data-act="g-open" data-id="' + esc(g.groupId) + '"><div class="row-main"><div class="row-title">Grupo ' + esc(g.name) + '</div><div class="meta">Tocá para abrir el grupo</div></div><div class="row-amt' + (g.amount < 0 ? ' owe' : '') + '">' + (g.amount < 0 ? '−' : '') + money(Math.abs(g.amount), 'ARS') + '</div></button>';
+        g.items.forEach(function (x) { d += '<div class="row sub" style="cursor:default"><div class="row-main"><div class="meta" style="color:var(--fg)">' + esc(x.desc) + ' · ' + fdate(x.date) + '</div></div><div class="row-amt small' + (x.amount < 0 ? ' owe' : '') + '">' + (x.amount < 0 ? '−' : '+') + money(Math.abs(x.amount), 'ARS') + '</div></div>'; });
+      });
+      p.personal.forEach(function (x) {
+        d += '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(x.desc) + '</div><div class="chips">' + (x.totalCuotas ? '<span class="chip">Cuota ' + x.cuota + ' de ' + x.totalCuotas + '</span>' : '') + '<span class="chip">' + esc(x.label) + '</span>' + (x.estimated ? '<span class="chip chip-warn">Estimada</span>' : '') + '<span class="chip">sin grupo</span></div></div><div class="row-amt">' + money(x.amount, 'ARS') + '</div></div>';
+      });
+      p.paid.forEach(function (x) {
+        d += '<div class="row pay" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">Me pagó · ' + fdate(x.date) + '</div></div><div class="row-amt">−' + money(x.amount, 'ARS') + '</div><button class="btn ghost small" data-act="p-unpay" data-id="' + esc(x.id) + '">Quitar</button></div>';
+      });
+      if (p.total > 0 && p.personal.length) d += '<div class="btns" style="padding:12px 16px"><button class="btn small" data-act="p-pay" data-key="' + esc(p.key) + '">Me pagó</button></div>';
+      return '<details class="person"><summary><div><div class="person-name">' + esc(p.name) + '</div><div class="meta">' + (p.groups.length ? p.groups.length + (p.groups.length === 1 ? ' grupo' : ' grupos') : '') + (p.groups.length && p.personal.length ? ' · ' : '') + (p.personal.length ? p.personal.length + (p.personal.length === 1 ? ' gasto sin grupo' : ' gastos sin grupo') : '') + '</div></div><div class="person-sub"><span class="row-amt">' + amt + '</span></div></summary><div class="list">' + d + '</div></details>';
+    }).join('') + '</section>';
+    return h;
+  }
+  function personPayModal(key) {
+    var p = C.personDebts(S, S.whoami, ui.month).find(function (x) { return x.key === key; });
+    var pers = p ? p.personal.reduce(function (s, x) { return s + x.amount; }, 0) : 0;
+    openModal('<h2>Me pagó ' + esc(p ? p.name : '') + '</h2><p class="small muted">Anotás que te pasó plata por los gastos sin grupo. Baja lo que te debe. Con el backend, la otra persona lo va a poder confirmar.</p><label class="f wide">Monto (ARS)<input type="number" step="0.01" inputmode="decimal" id="ppAmt" value="' + esc(C.r2(Math.max(0, Math.min(p ? p.total : 0, pers)))) + '"></label><p class="err small" id="ppErr" hidden></p><div class="btns"><button class="btn" id="ppSave">Guardar</button><button class="btn ghost" id="ppCancel">Cancelar</button></div>', function (root) {
+      root.querySelector('#ppCancel').onclick = closeModal;
+      root.querySelector('#ppSave').onclick = function () {
+        var amt = parseFloat(String($('#ppAmt').value).replace(',', '.'));
+        if (!(amt > 0)) { var e = $('#ppErr'); e.textContent = 'El monto tiene que ser mayor a cero.'; e.hidden = false; return; }
+        S.pay.push({ id: C.uid(), key: key, amount: C.r2(amt), date: today(), ts: Date.now() });
+        save(); closeModal(); render(); toast('Pago anotado');
+      };
+    });
+  }
   function groupExpRowHTML(r) {
     var chips = '<span class="chip chip-split">' + (r.others.length ? '÷ ' + esc(names(r.others)) : 'Sin dividir') + '</span>';
     return '<button class="row" data-act="g-open" data-id="' + esc(r.groupId) + '"><div class="row-main"><div class="row-title">' + esc(r.desc) + '</div><div class="meta">Pagó ' + esc(C.userName(r.paidBy)) + ' · ' + fdate(r.date) + '</div><div class="chips">' + chips + '</div></div><div class="row-amt">' + money(r.amount, 'ARS') + '<span class="usd">tu parte de ' + money(r.totalAmount, 'ARS') + '</span></div></button>';
   }
   function glistHTML() {
     rowIndex = {};
+    if (ui.filter === 'persona') return personListHTML();
     var hm = ui.hist || ui.month;
     var rows = filterRows(C.entriesForMonth(S, hm).concat(C.groupRowsFor(S, S.whoami)));
     if (!rows.length) return '<section class="card"><p class="muted">No hay gastos con ese filtro.</p></section>';
@@ -1089,7 +1219,7 @@ details.person .list { background: var(--bg); }
     return '<details class="card hist"' + (ui.hist ? ' open' : '') + '><summary>Historial: ver gastos de tarjeta de otro mes</summary><label class="f">Mes<select id="monthSel">' + months.map(function (m) { return '<option value="' + m + '"' + (m === (ui.hist || ui.month) ? ' selected' : '') + '>' + cap(C.monthLabel(m)) + '</option>'; }).join('') + '</select></label></details>';
   }
   function viewGastos() {
-    var f = [['todos', 'Todos'], ['divididos', 'Divididos'], ['cuotas', 'En cuotas'], ['sindesc', 'Sin descripción']];
+    var f = [['todos', 'Todos'], ['divididos', 'Divididos'], ['persona', 'Quién me debe'], ['cuotas', 'En cuotas'], ['sindesc', 'Sin descripción']];
     return '<section class="card"><label class="f">Buscar<input type="text" id="gq" value="' + esc(ui.q) + '" placeholder="Comercio o descripción"></label>' +
       '<div class="filters">' + f.map(function (x) { return '<button class="fchip" data-act="filter" data-f="' + x[0] + '" aria-pressed="' + (ui.filter === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></section>' +
       '<div id="glist" style="display:flex;flex-direction:column;gap:16px">' + glistHTML() + '</div>' + histCard();
@@ -1169,29 +1299,42 @@ details.person .list { background: var(--bg); }
     h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Quién le paga a quién</h2><span>para quedar a mano</span></div>';
     if (!sug.length) h += '<p class="muted small" style="padding:0 16px 16px">Está todo saldado.</p>';
     else h += '<div class="list">' + sug.map(function (s, i) {
-      return '<div class="row" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">' + esc(C.userName(s.from)) + ' → ' + esc(C.userName(s.to)) + '</div></div><div class="row-amt">' + money(s.amount, 'ARS') + '</div><button class="btn small ghost" data-act="g-settle" data-i="' + i + '">Pagó</button></div>';
+      return '<div class="row" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">' + esc(C.userName(s.from)) + ' → ' + esc(C.userName(s.to)) + '</div></div><div class="row-amt">' + money(s.amount, 'ARS') + '</div>' + (s.from === S.whoami || s.to === S.whoami ? '<button class="btn small ghost" data-act="g-settle" data-i="' + i + '">' + (s.from === S.whoami ? 'Ya pagué' : 'Me pagó') + '</button>' : '') + '</div>';
     }).join('') + '</div>';
     h += '</section>';
-    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Cada uno</h2><span>puso · le tocó · saldo</span></div><div class="list">' + g.members.map(function (m) {
-      var x = b.by[m];
-      return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(C.userName(m)) + (m === S.whoami ? ' (yo)' : '') + '</div><div class="meta">puso ' + money(x.paid, 'ARS') + ' · le tocó ' + money(x.owed, 'ARS') + '</div></div><div class="row-amt' + (x.net < 0 ? ' owe' : '') + '">' + (x.net > 0 ? '+' : x.net < 0 ? '−' : '') + money(Math.abs(x.net), 'ARS') + '</div></div>';
+    var order = [S.whoami].concat(g.members.filter(function (m) { return m !== S.whoami; }));
+    h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Cada uno</h2><span>saldo</span></div><div class="list">' + order.map(function (m) {
+      var x = b.by[m], lab = x.net > 0 ? '<span class="gain">puso de más ' + money(x.net, 'ARS') + '</span>' : (x.net < 0 ? '<span class="owe">le falta poner ' + money(-x.net, 'ARS') + '</span>' : '<span class="muted">está al día</span>');
+      return '<div class="row" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">' + esc(C.userName(m)) + (m === S.whoami ? ' (yo)' : '') + '</div></div><div class="row-amt" style="font-size:15px;text-align:right">' + lab + '</div></div>';
     }).join('') + (g.pending && g.pending.length ? g.pending.map(function (e) { return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(e) + '</div><div class="meta">Invitado · todavía no se registró</div></div></div>'; }).join('') : '') + '</div></section>';
     var eps = C.groupEpochs(g), total = g.expenses.length + (g.payments || []).length;
     var check = '<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.500 4.500 4.500L19 7.500"/></svg>';
+    function payRow(p) {
+      var pend = p.status === 'pending', other = p.by === p.from ? p.to : p.from, iConfirm = pend && p.by !== S.whoami && (p.from === S.whoami || p.to === S.whoami), mineP = pend && p.by === S.whoami;
+      var title = esc(C.userName(p.from)) + ' le pagó a ' + esc(C.userName(p.to));
+      if (!pend) return '<button class="row pay" data-act="g-item" data-k="p" data-id="' + esc(p.id) + '"><div class="row-main"><div class="row-title">' + check + title + '</div><div class="meta">Pago · ' + fdate(p.date) + '</div></div><div class="row-amt">' + money(p.amount, 'ARS') + '</div></button>';
+      return '<div class="row pend" style="cursor:default;flex-wrap:wrap"><div class="row-main"><div class="row-title">' + title + '</div><div class="meta">Pago pendiente · ' + fdate(p.date) + ' · lo registró ' + esc(C.userName(p.by)) + '</div><div class="chips"><span class="chip chip-warn">Falta que ' + esc(C.userName(other)) + ' lo confirme</span></div></div><div class="row-amt">' + money(p.amount, 'ARS') + '</div>' +
+        '<div class="btns" style="width:100%;margin-top:6px">' + (iConfirm ? '<button class="btn small" data-act="g-pconfirm" data-id="' + esc(p.id) + '">Confirmar</button><button class="btn ghost small" data-act="g-preject" data-id="' + esc(p.id) + '">Rechazar</button>' : '') + (mineP ? '<button class="btn ghost small" data-act="g-pcancel" data-id="' + esc(p.id) + '">Cancelar pago</button>' : '') + '</div></div>';
+    }
     function itemRow(it) {
-      if (it.t === 'p') return '<button class="row pay" data-act="g-item" data-k="p" data-id="' + esc(it.x.id) + '"><div class="row-main"><div class="row-title">' + check + esc(C.userName(it.x.from)) + ' le pagó a ' + esc(C.userName(it.x.to)) + '</div><div class="meta">Pago · ' + fdate(it.x.date) + '</div></div><div class="row-amt">' + money(it.x.amount, 'ARS') + '</div></button>';
+      if (it.t === 'p') return payRow(it.x);
       var e = it.x, all = e.splitAmong.length === g.members.length;
       return '<button class="row" data-act="g-item" data-k="e" data-id="' + esc(e.id) + '"><div class="row-main"><div class="row-title">' + esc(e.desc) + '</div><div class="meta">Pagó ' + esc(C.userName(e.paidBy)) + ' · ' + fdate(e.date) + '</div><div class="chips"><span class="chip chip-split">' + (all ? 'Entre todos' : 'Entre ' + e.splitAmong.map(C.userName).join(', ')) + '</span></div></div><div class="row-amt">' + money(e.amount, 'ARS') + '</div></button>';
     }
+    // franja "Todo saldado": solo se ve la más reciente; las anteriores quedan una adentro de la otra
+    function bandHTML(k) {
+      var ep = eps[k], key = g.id + ':' + ep.closer.id, open = !!ui.open[key];
+      var cl = ep.closers.length ? ep.closers : [ep.closer];
+      var txt = cl.slice(0, 3).map(function (p) { return esc(C.userName(p.from)) + ' le pagó ' + money(p.amount, 'ARS') + ' a ' + esc(C.userName(p.to)); }).join(' · ') + (cl.length > 3 ? ' · y ' + (cl.length - 3) + ' más' : '');
+      var n = ep.items.length + cl.length;
+      var h2 = '<button class="settled" data-act="g-epoch" data-k="' + esc(key) + '" aria-expanded="' + open + '">' + check + '<div><b>Todo saldado</b><div class="meta">' + fdate(ep.closer.date) + ' · ' + txt + '</div><div class="meta">' + n + (n === 1 ? ' movimiento' : ' movimientos') + ' · tocá para ' + (open ? 'esconder' : 'ver') + '</div></div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
+      if (open) h2 += '<div class="nest"><div class="list old">' + cl.map(function (p) { return payRow(p); }).join('') + ep.items.map(itemRow).join('') + '</div>' + (k + 1 < eps.length - 0 && eps[k + 1] && eps[k + 1].closer ? bandHTML(k + 1) : '') + '</div>';
+      return h2;
+    }
     h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Todo lo cargado</h2><span>' + total + '</span></div>';
     var body = '';
-    eps.forEach(function (ep, k) {
-      if (k > 0) {
-        var key = g.id + ':' + ep.closer.id, open = !!ui.open[key];
-        body += '<button class="settled" data-act="g-epoch" data-k="' + esc(key) + '" aria-expanded="' + open + '">' + check + '<div><b>Todo saldado</b><div class="meta">' + fdate(ep.closer.date) + ' · ' + esc(C.userName(ep.closer.from)) + ' le pagó ' + money(ep.closer.amount, 'ARS') + ' a ' + esc(C.userName(ep.closer.to)) + ' · tocá para ' + (open ? 'esconder' : 'ver') + ' el historial (' + (ep.items.length + 1) + ')</div></div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
-        if (open) body += '<div class="list old">' + itemRow({ t: 'p', x: ep.closer }) + ep.items.map(itemRow).join('') + '</div>';
-      } else if (ep.items.length) body += '<div class="list">' + ep.items.map(itemRow).join('') + '</div>';
-    });
+    if (eps[0].items.length) body += '<div class="list">' + eps[0].items.map(itemRow).join('') + '</div>';
+    if (eps.length > 1) body += bandHTML(1);
     if (!total) body = '<p class="muted small" style="padding:0 16px 16px">Todavía no se cargó nada.</p>';
     else if (!eps[0].items.length) body = '<p class="muted small" style="padding:0 16px 12px">Desde que se saldó todo no se cargó nada nuevo.</p>' + body;
     h += body;
@@ -1251,7 +1394,7 @@ details.person .list { background: var(--bg); }
 
   function groupPaymentModal(g, pay, pre) {
     var d = pay || pre || { from: S.whoami, to: g.members.filter(function (m) { return m !== S.whoami; })[0] || S.whoami, amount: '', date: today() };
-    var h = '<h2>' + (pay ? 'Editar pago' : 'Registrar pago') + '</h2><p class="small muted">Cuando alguien le pasa plata a otro para saldar, se anota acá y baja la deuda.</p><div class="form-grid">' +
+    var h = '<h2>' + (pay ? 'Editar pago' : 'Registrar pago') + '</h2><p class="small muted">' + (pay ? '' : 'Va a quedar pendiente hasta que el otro lo confirme. Recién ahí baja la deuda.') + '</p><div class="form-grid">' +
       '<label class="f">Quién pagó<select id="gpFrom">' + userOpts(g.members, d.from) + '</select></label>' +
       '<label class="f">A quién<select id="gpTo">' + userOpts(g.members, d.to) + '</select></label>' +
       '<label class="f">Monto (ARS)<input type="number" step="0.01" inputmode="decimal" id="gpAmt" value="' + esc(d.amount) + '"></label>' +
@@ -1262,14 +1405,14 @@ details.person .list { background: var(--bg); }
       root.querySelector('#gpCancel').onclick = closeModal;
       root.querySelector('#gpSave').onclick = function () {
         var amt = parseFloat(String($('#gpAmt').value).replace(',', '.')), from = $('#gpFrom').value, to = $('#gpTo').value, err = $('#gpErr'), msg = '';
-        if (from === to) msg = 'Quien paga y quien recibe tienen que ser distintos.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.';
+        if (from === to) msg = 'Quien paga y quien recibe tienen que ser distintos.'; else if (!(amt > 0)) msg = 'El monto tiene que ser mayor a cero.'; else if (!pay && from !== S.whoami && to !== S.whoami) msg = 'El pago te tiene que involucrar: o pagás vos o cobrás vos.';
         if (msg) { err.textContent = msg; err.hidden = false; return; }
         var o = { from: from, to: to, amount: C.r2(amt), date: $('#gpDate').value || today() };
         if (pay) {
           if (pay.amount !== o.amount || pay.from !== o.from || pay.to !== o.to) logAct(g, 'editó un pago: ahora ' + C.userName(o.from) + ' le pagó ' + money(o.amount, 'ARS') + ' a ' + C.userName(o.to) + ' (antes ' + C.userName(pay.from) + ' → ' + C.userName(pay.to) + ' ' + money(pay.amount, 'ARS') + ')');
           Object.assign(pay, o);
-        } else { o.id = C.uid(); o.ts = Date.now(); g.payments = g.payments || []; g.payments.push(o); logAct(g, 'registró que ' + C.userName(o.from) + ' le pagó ' + money(o.amount, 'ARS') + ' a ' + C.userName(o.to)); }
-        save(); closeModal(); render(); toast('Pago anotado');
+        } else { o.id = C.uid(); o.ts = Date.now(); o.status = 'pending'; o.by = S.whoami; g.payments = g.payments || []; g.payments.push(o); logAct(g, 'registró que ' + C.userName(o.from) + ' le pagó ' + money(o.amount, 'ARS') + ' a ' + C.userName(o.to) + ' (falta que ' + C.userName(o.from === S.whoami ? o.to : o.from) + ' lo confirme)'); }
+        save(); closeModal(); render(); toast(pay ? 'Pago guardado' : 'Pago registrado: falta que el otro lo confirme');
       };
       var del = root.querySelector('#gpDelAsk');
       if (del) del.onclick = function () {
@@ -1365,7 +1508,8 @@ details.person .list { background: var(--bg); }
     return {
       e: e,
       custom: ch.custom !== undefined ? ch.custom : (e ? e.custom : ''),
-      split: ch.splitWith !== undefined ? ch.splitWith : (e ? e.splitWith : null)
+      split: ch.splitWith !== undefined ? ch.splitWith : (e ? e.splitWith : null),
+      groupId: e && e.groupId ? e.groupId : (ch.groupId || '')
     };
   }
   function itemBadge(it, e) {
@@ -1380,6 +1524,16 @@ details.person .list { background: var(--bg); }
     return '<span class="chip">Nuevo</span>';
   }
 
+  // si el amigo con quien se divide tiene cuenta y comparte grupos con vos, se ofrece cargarlo en un grupo
+  function rvGroupHTML(ef, ri, i) {
+    if (!ef.split) return '';
+    var u = C.userOfContact(S, ef.split);
+    if (!u) return '';
+    if (ef.e && ef.e.groupId) { var g0 = gOf(ef.e.groupId); return '<div class="meta" style="margin-top:6px">Este gasto va al grupo ' + esc(g0 ? g0.name : '') + ', como los meses anteriores.</div>'; }
+    var gs = C.sharedGroups(S, u.id);
+    if (!gs.length) return '<div class="meta" style="margin-top:6px">No están juntos en ningún grupo: queda como deuda personal con ' + esc(u.name) + '.</div>';
+    return '<label class="f" style="margin-top:8px">¿En qué grupo lo cargo?<select class="rv-group" data-ri="' + ri + '" data-ii="' + i + '"><option value="">En ningún grupo (deuda personal)</option>' + gs.map(function (g) { return '<option value="' + esc(g.id) + '"' + (ef.groupId === g.id ? ' selected' : '') + '>' + esc(g.name) + '</option>'; }).join('') + '</select></label>';
+  }
   function reviewHTML(rv, ri) {
     if (rv.status === 'saved') return '<section class="card"><div class="alert good"><b>' + esc(rv.parsed.label) + ' guardado.</b><span>' + esc(rv.name) + ' · ' + rv.savedCount + ' movimientos cargados.</span></div><div class="btns"><button class="btn ghost small" data-act="rv-discard" data-ri="' + ri + '">Cerrar</button></div></section>';
     if (rv.error) return '<section class="card"><h3>' + esc(rv.name) + '</h3><div class="alert bad">' + esc(rv.error) + '</div><div class="btns"><button class="btn ghost small" data-act="rv-discard" data-ri="' + ri + '">Cerrar</button></div></section>';
@@ -1428,7 +1582,7 @@ details.person .list { background: var(--bg); }
       var amt = '<div class="row-amt' + (l.amount < 0 ? ' neg' : '') + '">' + money(l.amount, l.currency) + '</div>';
       if (it.annul) return '<div class="rv-item"><div class="rv-top"><div class="row-main"><div class="row-title">' + esc(l.desc) + '</div><div class="chips">' + itemBadge(it, ef.e) + '</div></div>' + amt + '</div></div>';
       return '<div class="rv-item"><div class="rv-top"><div class="row-main"><div class="row-title mono" style="font-size:13px">' + esc(l.desc) + '</div><div class="chips">' + itemBadge(it, ef.e) + '<span class="chip">' + fshort(l.date) + '</span></div></div>' + amt + '</div>' +
-        '<div class="rv-ctrls"><input type="text" class="rv-custom" data-ri="' + ri + '" data-ii="' + i + '" value="' + esc(ef.custom) + '" placeholder="Qué es (ej. cubrecama)" aria-label="Descripción propia"><select class="rv-split" data-ri="' + ri + '" data-ii="' + i + '" aria-label="Dividir con">' + contactOptions(ef.split, true) + '</select></div></div>';
+        '<div class="rv-ctrls"><input type="text" class="rv-custom" data-ri="' + ri + '" data-ii="' + i + '" value="' + esc(ef.custom) + '" placeholder="Qué es (ej. cubrecama)" aria-label="Descripción propia"><select class="rv-split" data-ri="' + ri + '" data-ii="' + i + '" aria-label="Dividir con">' + contactOptions(ef.split, true) + '</select></div>' + rvGroupHTML(ef, ri, i) + '</div>';
     }).join('') + '</div>';
     h += '<div class="btns"><button class="btn" data-act="rv-save" data-ri="' + ri + '"' + (block ? ' disabled' : '') + '>Guardar resumen</button><button class="btn ghost" data-act="rv-discard" data-ri="' + ri + '">Descartar</button></div></section>';
     return h;
@@ -1599,6 +1753,15 @@ details.person .list { background: var(--bg); }
       case 'g-pay': if (gOf(ui.group)) groupPaymentModal(gOf(ui.group)); break;
       case 'g-inv': if (gOf(ui.group)) groupInviteModal(gOf(ui.group)); break;
       case 'g-act': if (gOf(ui.group)) groupActivityModal(gOf(ui.group)); break;
+      case 'p-pay': personPayModal(el.getAttribute('data-key')); break;
+      case 'p-unpay': S.pay = S.pay.filter(function (x) { return x.id !== el.getAttribute('data-id'); }); save(); render(); break;
+      case 'g-pconfirm': case 'g-preject': case 'g-pcancel':
+        var pg = gOf(ui.group), pid = el.getAttribute('data-id'), pp = pg && (pg.payments || []).find(function (x) { return x.id === pid; });
+        if (!pp) break;
+        var pdesc = C.userName(pp.from) + ' → ' + C.userName(pp.to) + ' ' + money(pp.amount, 'ARS');
+        if (act === 'g-pconfirm') { pp.status = 'ok'; pp.ts = Date.now(); logAct(pg, 'confirmó el pago de ' + pdesc); toast('Pago confirmado'); }
+        else { pg.payments = pg.payments.filter(function (x) { return x.id !== pid; }); logAct(pg, (act === 'g-preject' ? 'rechazó' : 'canceló') + ' el pago de ' + pdesc); toast(act === 'g-preject' ? 'Pago rechazado' : 'Pago cancelado'); }
+        save(); render(); break;
       case 'g-epoch': var ek = el.getAttribute('data-k'); ui.open[ek] = !ui.open[ek]; var sy = window.scrollY; render(); window.scrollTo(0, sy); break;
       case 'g-settle':
         var gg = gOf(ui.group), sg = C.settle(C.groupBalances(gg).nets)[+el.getAttribute('data-i')];
@@ -1669,8 +1832,9 @@ details.person .list { background: var(--bg); }
     if (t.classList.contains('rv-split')) {
       var rvi = +t.getAttribute('data-ri'), ii = +t.getAttribute('data-ii'), rv = ui.reviews[rvi];
       if (t.value === '__new') { contactModal(null, function (c) { if (c) (rv.choices[ii] || (rv.choices[ii] = {})).splitWith = c.id; render(); }); return; }
-      (rv.choices[ii] || (rv.choices[ii] = {})).splitWith = t.value || null; return;
+      var chs = rv.choices[ii] || (rv.choices[ii] = {}); chs.splitWith = t.value || null; chs.groupId = ''; render(); return;
     }
+    if (t.classList.contains('rv-group')) { (ui.reviews[+t.getAttribute('data-ri')].choices[+t.getAttribute('data-ii')] || (ui.reviews[+t.getAttribute('data-ri')].choices[+t.getAttribute('data-ii')] = {})).groupId = t.value; return; }
     if (t.closest('#mform') && t.getAttribute('data-d')) {
       var k = t.getAttribute('data-d');
       if (k === 'splitWith' && t.value === '__new') { ui.mdraft.splitWith = ''; contactModal(null, function (c) { if (c) ui.mdraft.splitWith = c.id; render(); }); return; }
