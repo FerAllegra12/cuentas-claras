@@ -440,7 +440,7 @@ details.person .list { background: var(--bg); }
   }
 
   /* ---------- estado y conciliación ---------- */
-  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [], pay: [], activity: [], aliases: {} }; }
+  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [], pay: [], activity: [], aliases: {}, friendReqs: [] }; }
 
   function stmtOf(state, id) { return state.statements.find(function (s) { return s.id === id; }); }
   function lastEntry(e) { return e.entries[e.entries.length - 1]; }
@@ -540,10 +540,14 @@ details.person .list { background: var(--bg); }
     var m = c.email.trim().toLowerCase();
     return USERS.find(function (u) { return u.email === m; }) || null;
   }
-  function activeContacts(state) { return (state.contacts || []).filter(function (x) { return !x.removed; }); }
+  // cada contacto es de una cuenta (owner); los anteriores a este cambio son de Fercho
+  function myContacts(state) { return (state.contacts || []).filter(function (x) { return (x.owner || 'u-fercho') === state.whoami; }); }
+  function activeContacts(state) { return myContacts(state).filter(function (x) { return !x.removed; }); }
+  function incomingReqs(state) { return (state.friendReqs || []).filter(function (r) { return r.status === 'pending' && r.to === state.whoami; }); }
   // gente que está en alguno de mis grupos y no tengo como contacto (ni invitada)
   function groupStrangers(state) {
     var have = {}; activeContacts(state).forEach(function (x) { if (x.email) have[x.email.trim().toLowerCase()] = 1; });
+    (state.friendReqs || []).forEach(function (r) { if (r.status !== 'pending') return; var o = r.from === state.whoami ? r.to : (r.to === state.whoami ? r.from : null), u = o && USERS.find(function (x) { return x.id === o; }); if (u) have[u.email] = 1; });
     var out = {};
     (state.groups || []).forEach(function (g) {
       if (g.members.indexOf(state.whoami) < 0) return;
@@ -878,7 +882,8 @@ details.person .list { background: var(--bg); }
     s.aliases = { 'u-fercho': 'fercho.cuentas', 'u-pepito': 'pepito.mp', 'u-juancito': 'juancito.galicia' };
     var vale = { id: 'c1', alias: 'Vale', email: 'vale@ejemplo.com' };
     var mati = { id: 'c2', alias: 'Mati', email: 'mati@ejemplo.com' };
-    s.contacts = [vale, mati, { id: 'c3', alias: 'Pepito', email: 'pepito@prueba.com' }, { id: 'c4', alias: 'Juancito', email: 'juancito@prueba.com' }];
+    s.contacts = [vale, mati, { id: 'c3', alias: 'Pepito', email: 'pepito@prueba.com' }, { id: 'c4', alias: 'Juancito', email: 'juancito@prueba.com' },
+      { id: 'c5', alias: 'Fercho', email: 'fercho@prueba.com', owner: 'u-pepito' }, { id: 'c6', alias: 'Fercho', email: 'fercho@prueba.com', owner: 'u-juancito' }];
     var oct = { id: 's-oct', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-01', dueISO: '2026-10-09', payMonth: '2026-10', total: 0, totalUsd: 0, netted: [], count: 3 };
     var nov = { id: 's-nov', issuer: 'galicia-visa', label: LABELS['galicia-visa'], closeISO: '2026-10-29', dueISO: '2026-11-11', payMonth: '2026-11', total: 214000, totalUsd: 0, netted: [], count: 5 };
     var mpn = { id: 's-mp', issuer: 'mp', label: LABELS.mp, closeISO: '2026-10-27', dueISO: '2026-11-02', payMonth: '2026-11', total: 61500, totalUsd: 0, netted: [], count: 3 };
@@ -964,7 +969,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
-    userOfContact: userOfContact, activeContacts: activeContacts, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
+    userOfContact: userOfContact, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
     groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
@@ -1046,7 +1051,7 @@ details.person .list { background: var(--bg); }
   /* ---------- contactos ---------- */
   function contactOptions(sel, withNew) {
     var o = '<option value="">No lo divido</option>';
-    S.contacts.forEach(function (c) { if (c.removed && c.id !== sel) return; o += '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.alias) + '</option>'; });
+    C.myContacts(S).forEach(function (c) { if (c.removed && c.id !== sel) return; o += '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.alias) + '</option>'; });
     if (withNew) o += '<option value="__new">+ Agregar contacto…</option>';
     return o;
   }
@@ -1067,14 +1072,14 @@ details.person .list { background: var(--bg); }
           var msg = '';
           if (!alias) msg = 'Poné un alias.';
           else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) msg = 'Revisá el mail, no parece válido.';
-          else if (S.contacts.some(function (c) { return !c.removed && c.alias.toLowerCase() === alias.toLowerCase() && (!existing || c.id !== existing.id); })) msg = 'Ya tenés un contacto con ese alias.';
+          else if (C.myContacts(S).some(function (c) { return !c.removed && c.alias.toLowerCase() === alias.toLowerCase() && (!existing || c.id !== existing.id); })) msg = 'Ya tenés un contacto con ese alias.';
           if (msg) { err.textContent = msg; err.hidden = false; return; }
           var c, tr = $('#cTransfer').value.trim();
           if (existing) { c = S.contacts.find(function (x) { return x.id === existing.id; }); c.alias = alias; c.email = mail; c.transfer = tr; }
           else {
-            var old = S.contacts.find(function (x) { return x.removed && x.email.trim().toLowerCase() === mail.toLowerCase(); });
+            var old = C.myContacts(S).find(function (x) { return x.removed && x.email.trim().toLowerCase() === mail.toLowerCase(); });
             if (old) { c = old; c.alias = alias; c.transfer = tr; delete c.removed; logGen('volvió a agregar a ' + alias + ' como contacto'); }
-            else { c = { id: C.uid(), alias: alias, email: mail, transfer: tr }; S.contacts.push(c); }
+            else { c = { id: C.uid(), owner: S.whoami, alias: alias, email: mail, transfer: tr }; S.contacts.push(c); }
           }
           S.demo = false; save(); closeModal(); if (done) done(c); else render();
         };
@@ -1100,7 +1105,7 @@ details.person .list { background: var(--bg); }
     // pestañas
     var gear = $('#gear'); if (gear) gear.setAttribute('aria-pressed', String(ui.tab === 'ajustes'));
     $('#tabs').innerHTML = TABS.map(function (t) {
-      return '<button class="tab" data-act="tab" data-tab="' + t[0] + '"' + (ui.tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[t[0]] + '</svg>' + t[1] + (t[0] === 'contactos' && C.groupStrangers(S).length ? '<span class="tab-badge" aria-label="Tenés gente de tus grupos para invitar">?</span>' : '') + '</button>';
+      return '<button class="tab" data-act="tab" data-tab="' + t[0] + '"' + (ui.tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[t[0]] + '</svg>' + t[1] + (t[0] === 'contactos' && (C.groupStrangers(S).length || C.incomingReqs(S).length) ? '<span class="tab-badge" aria-label="Tenés gente de tus grupos para invitar">?</span>' : '') + '</button>';
     }).join('');
     var v = $('#view');
     rowIndex = {};
@@ -1263,8 +1268,12 @@ details.person .list { background: var(--bg); }
   function copyBtn(v) { return v ? '<button class="btn ghost small" data-act="copy-alias" data-v="' + esc(v) + '">Copiar alias</button>' : ''; }
   function contactAlias(c) { var u = C.userOfContact(S, c.id); return (u && C.transferAlias(S, u.id)) || c.transfer || ''; }
   function viewContactos() {
-    var act = C.activeContacts(S), gone = S.contacts.filter(function (x) { return x.removed; }), str = C.groupStrangers(S);
+    var act = C.activeContacts(S), gone = C.myContacts(S).filter(function (x) { return x.removed; }), str = C.groupStrangers(S), reqs = C.incomingReqs(S);
     var h = '';
+    if (reqs.length) {
+      h += '<section class="card flat todo"><div class="sec-h" style="padding:16px 16px 4px"><h2><span class="qmark">!</span> Solicitudes para ser contactos</h2></div><div class="list">' +
+        reqs.map(function (r) { return '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(C.userName(r.from)) + '</div><div class="meta">Quiere ser tu contacto</div></div><div class="btns" style="width:100%"><button class="btn small" data-act="req-ok" data-id="' + esc(r.id) + '">Aceptar</button><button class="btn ghost small" data-act="req-no" data-id="' + esc(r.id) + '">Rechazar</button></div></div>'; }).join('') + '</div></section>';
+    }
     if (str.length) {
       h += '<section class="card flat todo"><div class="sec-h" style="padding:16px 16px 4px"><h2><span class="qmark">?</span> Gente de tus grupos</h2></div><p class="muted small" style="padding:0 16px 8px">Están en tus grupos y no los tenés como contactos. Invitalos para poder dividir con ellos también por fuera del grupo.</p><div class="list">' +
         str.map(function (x) { return '<div class="row" style="cursor:default;align-items:center"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(x.user.name) + '</div><div class="meta">' + esc(x.groups.join(', ')) + '</div></div><button class="btn small" data-act="inv-contact" data-id="' + esc(x.user.id) + '">Invitar a mis contactos</button></div>'; }).join('') + '</div></section>';
@@ -1880,14 +1889,30 @@ details.person .list { background: var(--bg); }
       case 'filter': ui.filter = el.getAttribute('data-f'); render(); break;
       case 'open-row': var r = rowIndex[el.getAttribute('data-key')]; if (r) rowModal(r); break;
       case 'add-contact': contactModal(null); break;
-      case 'edit-contact': contactModal(S.contacts.find(function (c) { return c.id === el.getAttribute('data-id'); })); break;
+      case 'edit-contact': contactModal(C.myContacts(S).find(function (c) { return c.id === el.getAttribute('data-id'); })); break;
       case 'save-alias': S.aliases = S.aliases || {}; var nal = $('#myAlias').value.trim(); if ((S.aliases[S.whoami] || '') !== nal) { S.aliases[S.whoami] = nal; logGen(nal ? 'cargó su alias para que le transfieran' : 'sacó su alias de transferencia'); } save(); toast('Alias guardado'); render(); break;
       case 'copy-alias': var av = el.getAttribute('data-v'); try { navigator.clipboard.writeText(av).then(function () { toast('Alias copiado: ' + av); }, function () { toast('Alias: ' + av); }); } catch (e1) { toast('Alias: ' + av); } break;
       case 'inv-contact':
         var iu = C.USERS.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (!iu) break;
-        var prev = S.contacts.find(function (x) { return x.email.trim().toLowerCase() === iu.email; });
-        if (prev) { delete prev.removed; prev.invited = true; } else S.contacts.push({ id: C.uid(), alias: iu.name, email: iu.email, transfer: '', invited: true });
+        var prev = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === iu.email; });
+        if (prev) { delete prev.removed; prev.invited = true; } else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: iu.name, email: iu.email, transfer: '', invited: true });
+        S.friendReqs = S.friendReqs || []; S.friendReqs.push({ id: C.uid(), from: S.whoami, to: iu.id, status: 'pending', ts: Date.now() });
         logGen('invitó a ' + iu.name + ' a ser contacto'); save(); toast('Invitación enviada a ' + iu.name); render(); break;
+      case 'req-ok': case 'req-no':
+        var rq = (S.friendReqs || []).find(function (x) { return x.id === el.getAttribute('data-id'); }); if (!rq) break;
+        var fu = C.USERS.find(function (x) { return x.id === rq.from; }), me2 = C.USERS.find(function (x) { return x.id === rq.to; });
+        var theirs = S.contacts.find(function (x) { return (x.owner || 'u-fercho') === rq.from && x.email.trim().toLowerCase() === me2.email; });
+        if (act === 'req-ok') {
+          rq.status = 'accepted';
+          var mine2 = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === fu.email; });
+          if (mine2) delete mine2.removed; else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: fu.name, email: fu.email, transfer: '' });
+          if (theirs) { delete theirs.invited; delete theirs.removed; }
+          logGen('aceptó la solicitud de ' + fu.name + ': ahora son contactos'); toast('Ahora ' + fu.name + ' es tu contacto');
+        } else {
+          rq.status = 'rejected'; if (theirs) { delete theirs.invited; theirs.removed = Date.now(); }
+          logGen('rechazó la solicitud de ' + fu.name); toast('Solicitud rechazada');
+        }
+        save(); render(); break;
       case 'readd-contact': var rc = S.contacts.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (rc) { delete rc.removed; logGen('volvió a agregar a ' + rc.alias + ' como contacto'); save(); render(); } break;
       case 'del-contact':
         var cid = el.getAttribute('data-id'), c = S.contacts.find(function (x) { return x.id === cid; });
