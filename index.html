@@ -195,9 +195,16 @@ details.person .list { background: var(--bg); }
 
 /* navegación inferior */
 .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 6px var(--gutter-r) calc(6px + env(safe-area-inset-bottom, 0px)) var(--gutter-l); }
-.tabs-in { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
+.tabs-in { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
 .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 52px; justify-content: center; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 500; border-radius: 10px; cursor: pointer; }
 .tab { position: relative; }
+.whochip { display: inline-flex; gap: 4px; align-items: center; border: 1px dashed var(--line); background: var(--surface-2); color: var(--muted); font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; margin-bottom: 12px; }
+.whochip b { color: var(--fg); }
+.who-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 8px 16px 16px; }
+.who { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); cursor: pointer; min-width: 0; }
+.who span { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.who[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.who[aria-pressed=true] b::after { content: ' ✓'; color: var(--accent); }
 .tab svg { width: 22px; height: 22px; }
 .tab-badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 16px; height: 16px; border-radius: 999px; background: #f59e0b; color: #1b1300; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; }
 .qmark { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px; background: #f59e0b; color: #1b1300; font-size: 13px; font-weight: 700; }
@@ -223,6 +230,7 @@ details.person .list { background: var(--bg); }
   <header class="top">
     <div class="brand"><h1>Cuentas Claras</h1><span class="tag">Prototipo</span><button class="gear" id="gear" data-act="tab" data-tab="ajustes" aria-label="Ajustes" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/></svg></button></div>
   </header>
+  <div id="whoBar"></div>
   <div id="demoBanner" hidden></div>
   <main id="view"></main>
 </div>
@@ -1021,6 +1029,7 @@ details.person .list { background: var(--bg); }
 
   /* ---------- íconos ---------- */
   var ICON = {
+    pruebas: '<path d="M9 3h6"/><path d="M10 3v6.500L4.500 19a1.500 1.500 0 0 0 1.300 2.200h12.400a1.500 1.500 0 0 0 1.300-2.200L14 9.500V3"/><path d="M7.500 15h9"/>',
     inicio: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/>',
     cargar: '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v4h16v-4"/>',
     gastos: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
@@ -1028,7 +1037,7 @@ details.person .list { background: var(--bg); }
     contactos: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.6 3.2-5.5 6.5-5.5s6 1.900 6.500 5.500"/><path d="M16 4.700a3.500 3.500 0 0 1 0 6.600M18 14.800c2 .700 3.200 2.300 3.500 5.200"/>',
     ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2.500v3M12 18.500v3M2.500 12h3M18.500 12h3M5.300 5.300l2.100 2.100M16.600 16.600l2.100 2.100M18.700 5.300l-2.100 2.100M7.400 16.600l-2.100 2.100"/>'
   };
-  var TABS = [['inicio', 'Inicio'], ['cargar', 'Cargar'], ['gastos', 'Gastos'], ['grupos', 'Grupos'], ['contactos', 'Contactos']];
+  var TABS = [['pruebas', 'Pruebas'], ['inicio', 'Inicio'], ['cargar', 'Cargar'], ['gastos', 'Gastos'], ['grupos', 'Grupos'], ['contactos', 'Contactos']];
   var ALL_TABS = TABS.concat([['ajustes', 'Ajustes']]);
 
   /* ---------- aviso ---------- */
@@ -1109,7 +1118,8 @@ details.person .list { background: var(--bg); }
     }).join('');
     var v = $('#view');
     rowIndex = {};
-    v.innerHTML = ({ inicio: viewInicio, cargar: viewCargar, gastos: viewGastos, contactos: viewContactos, grupos: viewGrupos, ajustes: viewAjustes })[ui.tab]();
+    var wb = $('#whoBar'); if (wb) wb.innerHTML = ui.tab === 'pruebas' ? '' : '<button class="whochip" data-act="tab" data-tab="pruebas">Probando como <b>' + esc(C.userName(S.whoami)) + '</b> · cambiar</button>';
+    v.innerHTML = ({ pruebas: viewPruebas, inicio: viewInicio, cargar: viewCargar, gastos: viewGastos, contactos: viewContactos, grupos: viewGrupos, ajustes: viewAjustes })[ui.tab]();
   }
 
   function setTab(t, scroll) {
@@ -1293,6 +1303,18 @@ details.person .list { background: var(--bg); }
     return h;
   }
 
+  /* ----- Pruebas (entorno de homologación) ----- */
+  function viewPruebas() {
+    return '<section class="card"><h2>Entorno de pruebas</h2><p class="small muted">Solo para nosotros. Elegí con qué usuario querés probar y las otras pestañas (Inicio, Cargar, Gastos, Grupos y Contactos) se muestran como las vería esa persona. Con la app real, cada uno entra con su cuenta y esta pestaña no existe.</p></section>' +
+      '<section class="card flat"><div class="sec-h" style="padding:16px 16px 8px"><h2>Probar con</h2><span>usuario actual: ' + esc(C.userName(S.whoami)) + '</span></div><div class="who-grid">' +
+      C.USERS.map(function (u) {
+        var gs = S.groups.filter(function (g) { return g.members.indexOf(u.id) >= 0; }).length, n = (S.contacts || []).filter(function (x) { return (x.owner || 'u-fercho') === u.id && !x.removed; }).length;
+        var rq = (S.friendReqs || []).filter(function (r) { return r.status === 'pending' && r.to === u.id; }).length;
+        return '<button class="who" data-act="who-set" data-id="' + esc(u.id) + '" aria-pressed="' + (u.id === S.whoami) + '"><b>' + esc(u.name) + '</b><span>' + esc(u.email) + '</span><span>' + gs + (gs === 1 ? ' grupo' : ' grupos') + ' · ' + n + (n === 1 ? ' contacto' : ' contactos') + (rq ? ' · ' + rq + (rq === 1 ? ' solicitud' : ' solicitudes') : '') + '</span></button>';
+      }).join('') + '</div></section>' +
+      '<section class="card"><h2>Datos</h2><p class="small muted">Cargá los datos inventados para tener algo con qué probar. Para borrar todo, andá a Ajustes.</p><div class="btns"><button class="btn ghost" data-act="demo-on">Ver datos de ejemplo</button></div></section>';
+  }
+
   /* ----- Ajustes ----- */
   function viewAjustes() {
     var me = C.userName(S.whoami);
@@ -1344,7 +1366,7 @@ details.person .list { background: var(--bg); }
     var g = ui.group && gOf(ui.group);
     if (g && g.members.indexOf(S.whoami) < 0) g = null;
     if (!g) ui.group = null;
-    var h = '<section class="card">' + whoSelect() + '<p class="small muted">Es un truco del prototipo: cambiá de usuario para ver el grupo como lo vería Pepito o Juancito. Con el backend de verdad, cada uno entra con su cuenta.</p></section>';
+    var h = '';
     if (!g) {
       var list = mine();
       h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Mis grupos</h2><button class="btn small" data-act="g-new">Nuevo grupo</button></div>';
@@ -1890,6 +1912,7 @@ details.person .list { background: var(--bg); }
       case 'open-row': var r = rowIndex[el.getAttribute('data-key')]; if (r) rowModal(r); break;
       case 'add-contact': contactModal(null); break;
       case 'edit-contact': contactModal(C.myContacts(S).find(function (c) { return c.id === el.getAttribute('data-id'); })); break;
+      case 'who-set': S.whoami = el.getAttribute('data-id'); save(); ui.group = null; ui.from = null; toast('Probando como ' + C.userName(S.whoami)); render(); break;
       case 'save-alias': S.aliases = S.aliases || {}; var nal = $('#myAlias').value.trim(); if ((S.aliases[S.whoami] || '') !== nal) { S.aliases[S.whoami] = nal; logGen(nal ? 'cargó su alias para que le transfieran' : 'sacó su alias de transferencia'); } save(); toast('Alias guardado'); render(); break;
       case 'copy-alias': var av = el.getAttribute('data-v'); try { navigator.clipboard.writeText(av).then(function () { toast('Alias copiado: ' + av); }, function () { toast('Alias: ' + av); }); } catch (e1) { toast('Alias: ' + av); } break;
       case 'inv-contact':
@@ -1934,7 +1957,7 @@ details.person .list { background: var(--bg); }
         if (S.demo) S = C.emptyState();
         res.m.id = C.uid(); S.manual.push(res.m); save(); ui.mdraft = null; ui.month = res.m.startMonth; toast('Gasto guardado'); setTab('gastos'); break;
       case 'copy-backup': copyBackup(); break;
-      case 'demo-on': S = C.demoState(); save(); ui.group = null; ui.month = '2026-11'; setTab('inicio'); break;
+      case 'demo-on': S = C.demoState(); save(); ui.group = null; ui.month = '2026-11'; setTab(ui.tab === 'pruebas' ? 'pruebas' : 'inicio'); break;
       case 'wipe-demo': S = C.emptyState(); save(); ui.group = null; ui.month = null; ui.reviews = []; render(); break;
       case 'wipe-ask':
         var wb = $('#wipeBox'); wb.hidden = false;
