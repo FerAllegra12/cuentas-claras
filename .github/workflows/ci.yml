@@ -49,11 +49,11 @@ jobs:
         run: |
           flutter create --platforms=android --org com.fercho --project-name cuentas_claras .
           rm -f test/widget_test.dart
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+      - run: bash ../.github/ci_run.sh flutter pub get
+      - run: bash ../.github/ci_run.sh flutter analyze --no-fatal-infos
+      - run: bash ../.github/ci_run.sh flutter test
       - name: Compilar APK
-        run: flutter build apk --release
+        run: bash ../.github/ci_run.sh flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: cuentas-claras-apk

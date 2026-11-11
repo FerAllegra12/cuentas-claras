@@ -5,16 +5,16 @@ void main() {
   const f = 'fercho', p = 'pepito', j = 'juancito';
 
   test('saldos: reparto 100,00 entre 3, pagó Fercho', () {
-    final nets = groupNets([f, p, j], [GroupExpense(10000, f, [f, p, j])], []);
+    final nets = groupNets([f, p, j], [const GroupExpense(10000, f, [f, p, j])], []);
     expect(nets, {f: 6666, p: -3333, j: -3333});
     expect(nets.values.reduce((a, b) => a + b), 0);
   });
 
   test('un pago pendiente no baja la deuda, uno confirmado sí', () {
-    final gastos = [GroupExpense(10000, f, [f, p, j])];
-    final pend = groupNets([f, p, j], gastos, [GroupPayment(p, f, 3333, confirmed: false)]);
+    final gastos = [const GroupExpense(10000, f, [f, p, j])];
+    final pend = groupNets([f, p, j], gastos, [const GroupPayment(p, f, 3333, confirmed: false)]);
     expect(pend[p], -3333);
-    final conf = groupNets([f, p, j], gastos, [GroupPayment(p, f, 3333)]);
+    final conf = groupNets([f, p, j], gastos, [const GroupPayment(p, f, 3333)]);
     expect(conf[p], 0);
     expect(conf[f], 3333);
   });
