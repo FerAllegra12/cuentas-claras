@@ -104,6 +104,8 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .chip { display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; line-height: 1; padding: 5px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
 .chip-split { background: var(--accent-soft); color: var(--accent); }
 .chip-end { background: var(--warn-soft); color: var(--warn); }
+.chip-edit { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.row-amt-edit { cursor: pointer; text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 4px; }
 .chip-warn { background: var(--warn-soft); color: var(--warn); border: 1px dashed currentColor; }
 .hero.debt { background: var(--bad-soft); color: var(--bad); }
 .gear { margin-left: 2px; width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 10px; cursor: pointer; align-self: center; }
@@ -434,7 +436,7 @@ details.person .list { background: var(--bg); }
   }
 
   /* ---------- estado y conciliación ---------- */
-  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [], pay: [] }; }
+  function emptyState() { return { v: 1, demo: false, whoami: 'u-fercho', contacts: [], expenses: [], statements: [], manual: [], groups: [], pay: [], activity: [] }; }
 
   function stmtOf(state, id) { return state.statements.find(function (s) { return s.id === id; }); }
   function lastEntry(e) { return e.entries[e.entries.length - 1]; }
@@ -622,12 +624,14 @@ details.person .list { background: var(--bg); }
       if (have[e.issuer + '|' + ym]) return;
       var last = lastEntry(e), s = stmtOf(state, last.stmtId);
       if (!s || !s.payMonth || s.payMonth >= ym) return;
-      var n = last.cuota + monthDiff(s.payMonth, ym);
-      if (n > e.key.total) return;
+      var base = { month: s.payMonth, cuota: last.cuota, total: e.key.total, amount: last.amount };
+      Object.keys(e.anchors || {}).sort().forEach(function (k) { if (k <= ym && k > base.month) base = { month: k, cuota: e.anchors[k].cuota, total: e.anchors[k].total, amount: e.anchors[k].amount }; });
+      var n = base.cuota + monthDiff(base.month, ym);
+      if (n > base.total) return;
       rows.push({
-        source: 'pdf', estimated: true, expenseId: e.id, entryIdx: null, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
-        desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: 'cuota', tag: e.tag, cuota: n, total: e.key.total,
-        amount: last.amount, currency: last.currency, splitWith: e.splitWith, status: e.status, date: last.date, ref: last.ref
+        source: 'pdf', estimated: true, ym: ym, expenseId: e.id, entryIdx: null, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
+        desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: 'cuota', tag: e.tag, cuota: n, total: base.total,
+        amount: base.amount, currency: last.currency, splitWith: e.splitWith, status: e.status, date: last.date, ref: last.ref
       });
     });
     return rows;
@@ -656,7 +660,7 @@ details.person .list { background: var(--bg); }
       e.entries.forEach(function (en, idx) {
         var s = ids[en.stmtId]; if (!s) return;
         rows.push({
-          source: 'pdf', expenseId: e.id, entryIdx: idx, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
+          source: 'pdf', ym: ym, expenseId: e.id, entryIdx: idx, stmtId: s.id, issuer: e.issuer, label: LABELS[e.issuer] || e.issuer,
           desc: e.custom || e.desc, custom: e.custom, descRaw: e.desc, kind: e.kind, tag: e.tag, cuota: en.cuota, total: en.total,
           amount: en.amount, currency: en.currency, splitWith: e.splitWith, groupId: e.groupId || null, status: e.status, date: en.date, ref: en.ref
         });
@@ -665,7 +669,7 @@ details.person .list { background: var(--bg); }
     state.manual.forEach(function (m) {
       var c = manualCuota(m, ym); if (!c) return;
       rows.push({
-        source: 'manual', manualId: m.id, issuer: 'manual', label: LABELS.manual, desc: m.desc, custom: m.desc, descRaw: m.desc,
+        source: 'manual', ym: ym, manualId: m.id, issuer: 'manual', label: LABELS.manual, desc: m.desc, custom: m.desc, descRaw: m.desc,
         kind: m.monthly ? 'recurrente' : (c.total ? 'cuota' : 'unico'), cuota: c.cuota, total: c.total, amount: m.amount,
         currency: m.currency || 'ARS', splitWith: m.splitWith, status: 'activo', monthly: !!m.monthly
       });
@@ -788,7 +792,7 @@ details.person .list { background: var(--bg); }
       if (!r.splitWith || r.groupId || r.status === 'anulado' || r.currency === 'USD' || !(r.amount > 0)) return;
       var p = P(personKey(state, r.splitWith)), share = r2(r.amount / 2);
       p.total += share;
-      p.personal.push({ desc: r.desc, label: r.label, amount: share, cuota: r.cuota, totalCuotas: r.total, estimated: !!r.estimated });
+      p.personal.push({ desc: r.desc, label: r.label, amount: share, cuota: r.cuota, totalCuotas: r.total });
     });
     (state.pay || []).forEach(function (x) { var p = P(x.key); p.total -= x.amount; p.paid.push(x); });
     var out = Object.keys(people).map(function (k) { people[k].total = r2(people[k].total); return people[k]; })
@@ -1086,15 +1090,15 @@ details.person .list { background: var(--bg); }
 
   function rowHTML(r) {
     var chips = [];
-    if (r.total) chips.push('<span class="chip' + (r.cuota === r.total ? ' chip-end' : '') + '">' + (r.cuota === r.total ? 'Última · ' : '') + 'Cuota ' + r.cuota + ' de ' + r.total + '</span>');
-    if (r.estimated) chips.push('<span class="chip chip-warn">Estimada</span>');
+    var qk = rowKey(r);
+    if (r.total) chips.push('<span class="chip chip-edit' + (r.cuota === r.total ? ' chip-end' : '') + '" data-act="q-edit" data-key="' + qk + '" title="Tocá para corregir la cuota">' + (r.cuota === r.total ? 'Última · ' : '') + 'Cuota ' + r.cuota + ' de ' + r.total + '</span>');
     if (r.kind === 'recurrente') chips.push('<span class="chip">Todos los meses</span>');
     if (r.tag === 'transferencia') chips.push('<span class="chip">Transferencia</span>');
     if (r.splitWith) chips.push('<span class="chip chip-split">÷ ' + esc(cname(r.splitWith)) + (r.groupId ? ' · en grupo ' + esc((gOf(r.groupId) || {}).name || '') : '') + '</span>');
     if (r.status === 'anulado') chips.push('<span class="chip chip-bad">Anulado</span>');
     var sub = (r.source === 'pdf' && r.custom && r.descRaw !== r.custom) ? '<div class="meta mono">' + esc(r.descRaw) + '</div>' : '';
-    return '<button class="row" data-act="open-row" data-key="' + rowKey(r) + '"><div class="row-main"><div class="row-title"' + (r.status === 'anulado' ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(r.desc) + '</div>' + sub +
-      (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '') + '</div><div class="row-amt' + (r.amount < 0 ? ' neg' : '') + '">' + money(r.amount, r.currency) + '</div></button>';
+    return '<button class="row" data-act="open-row" data-key="' + qk + '"><div class="row-main"><div class="row-title"' + (r.status === 'anulado' ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(r.desc) + '</div>' + sub +
+      (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '') + '</div><div class="row-amt row-amt-edit' + (r.amount < 0 ? ' neg' : '') + '" data-act="q-edit" data-key="' + qk + '" title="Tocá para corregir el monto">' + money(r.amount, r.currency) + '</div></button>';
   }
 
   function both(o, cls) {
@@ -1120,7 +1124,7 @@ details.person .list { background: var(--bg); }
     var est = rows.filter(function (r) { return r.estimated; });
     if (est.length) {
       var iss = {}; est.forEach(function (r) { iss[r.label] = 1; });
-      h += '<div class="alert warn"><b>Falta el resumen de ' + esc(Object.keys(iss).join(' y ')) + ' de este mes.</b><span>Las ' + est.length + (est.length === 1 ? ' cuota marcada' : ' cuotas marcadas') + ' como estimadas siguen el hilo desde el último resumen que cargaste. Cuando subas el real, se corrigen solas.</span></div>';
+      h += '<div class="alert warn"><b>Falta el resumen de ' + esc(Object.keys(iss).join(' y ')) + ' de este mes.</b><span>Las ' + est.length + (est.length === 1 ? ' cuota sigue' : ' cuotas siguen') + ' el hilo desde el último resumen que cargaste. Si alguna no coincide, tocá la cuota o el monto para corregirla.</span></div>';
     }
     h += '<section class="hero"><small>Me deben por los gastos que dividí</small><b>' + both(t.owed, 'usd') + '</b></section>';
     h += '<div class="stats"><div class="stat"><small>Total de los resúmenes</small><b>' + both(t.total) + '</b></div><div class="stat"><small>Mi parte</small><b>' + both(t.mine) + '</b></div></div>';
@@ -1173,7 +1177,7 @@ details.person .list { background: var(--bg); }
         g.items.forEach(function (x) { d += '<div class="row sub" style="cursor:default"><div class="row-main"><div class="meta" style="color:var(--fg)">' + esc(x.desc) + ' · ' + fdate(x.date) + '</div></div><div class="row-amt small' + (x.amount < 0 ? ' owe' : '') + '">' + (x.amount < 0 ? '−' : '+') + money(Math.abs(x.amount), 'ARS') + '</div></div>'; });
       });
       p.personal.forEach(function (x) {
-        d += '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(x.desc) + '</div><div class="chips">' + (x.totalCuotas ? '<span class="chip">Cuota ' + x.cuota + ' de ' + x.totalCuotas + '</span>' : '') + '<span class="chip">' + esc(x.label) + '</span>' + (x.estimated ? '<span class="chip chip-warn">Estimada</span>' : '') + '<span class="chip">sin grupo</span></div></div><div class="row-amt">' + money(x.amount, 'ARS') + '</div></div>';
+        d += '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title">' + esc(x.desc) + '</div><div class="chips">' + (x.totalCuotas ? '<span class="chip">Cuota ' + x.cuota + ' de ' + x.totalCuotas + '</span>' : '') + '<span class="chip">' + esc(x.label) + '</span>' + '<span class="chip">sin grupo</span></div></div><div class="row-amt">' + money(x.amount, 'ARS') + '</div></div>';
       });
       p.paid.forEach(function (x) {
         d += '<div class="row pay" style="cursor:default;align-items:center"><div class="row-main"><div class="row-title">Me pagó · ' + fdate(x.date) + '</div></div><div class="row-amt">−' + money(x.amount, 'ARS') + '</div><button class="btn ghost small" data-act="p-unpay" data-id="' + esc(x.id) + '">Quitar</button></div>';
@@ -1204,11 +1208,13 @@ details.person .list { background: var(--bg); }
     rowIndex = {};
     if (ui.filter === 'persona') return personListHTML();
     var hm = ui.hist || ui.month;
-    var rows = filterRows(C.entriesForMonth(S, hm).concat(C.groupRowsFor(S, S.whoami)));
-    if (!rows.length) return '<section class="card"><p class="muted">No hay gastos con ese filtro.</p></section>';
+    var cardRows = C.entriesForMonth(S, hm);
+    var rows = filterRows(cardRows.concat(C.groupRowsFor(S, S.whoami)));
+    var notice = cardRows.length ? '' : '<section class="card"><p class="muted"><b>No hay gastos de tarjeta en ' + esc(cap(C.monthLabel(hm))) + '.</b> No tenemos info de ese período: no hay ningún resumen cargado ni cuotas que caigan en ese mes.</p></section>';
+    if (!rows.length) return notice || '<section class="card"><p class="muted">No hay gastos con ese filtro.</p></section>';
     var groups = {};
     rows.forEach(function (r) { (groups[r.label] = groups[r.label] || []).push(r); });
-    return Object.keys(groups).map(function (g) {
+    return notice + Object.keys(groups).map(function (g) {
       var list = groups[g].sort(function (a, b) { return (b.amount - a.amount); });
       var sum = list.reduce(function (a, r) { if (r.status !== 'anulado' && r.currency !== 'USD') a += r.amount; return a; }, 0);
       return '<section class="card flat"><div class="group-h"><b>' + esc(g) + '</b><span>' + list.length + ' · ' + money(sum, 'ARS') + '</span></div><div class="list">' + list.map(function (r) { return r.source === 'group' ? groupExpRowHTML(r) : rowHTML(r); }).join('') + '</div></section>';
@@ -1247,6 +1253,7 @@ details.person .list { background: var(--bg); }
       '<li>No hay inteligencia artificial en el medio: la lectura es por reglas, así que no tiene costo.</li></ul></section>' +
       '<section class="card"><h2>Resúmenes que sé leer</h2><div class="chips"><span class="chip chip-good">Galicia Visa</span><span class="chip chip-good">Galicia Mastercard</span><span class="chip chip-good">Mercado Pago</span></div>' +
       '<p class="small muted">Si un banco cambia el diseño del PDF, la app no guarda nada y te avisa. Mientras tanto podés cargar a mano.</p></section>' +
+      '<section class="card flat"><div class="sec-h" style="padding:16px 16px 8px"><h2>Actividad</h2><span>quién tocó qué</span></div><div class="list">' + actList(S.activity || []) + '</div></section>' +
       '<section class="card"><h2>Respaldo</h2><p class="small muted">Los datos viven en este navegador. Copiá el respaldo y guardalo donde quieras, o cargá uno que ya tengas.</p>' +
       '<div class="btns"><button class="btn" data-act="copy-backup">Copiar respaldo</button><label class="btn ghost" style="cursor:pointer">Cargar respaldo<input type="file" id="bkFile" accept=".json,application/json" hidden></label></div>' +
       '<textarea id="bkText" rows="4" hidden readonly></textarea></section>' +
@@ -1341,6 +1348,14 @@ details.person .list { background: var(--bg); }
     return h + '</section>';
   }
   function fdt(ts) { if (!ts) return ''; var d = new Date(ts), p = function (n) { return ('0' + n).slice(-2); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function logGen(text) { S.activity = S.activity || []; S.activity.push({ id: C.uid(), ts: Date.now(), who: S.whoami, text: text }); }
+  function actList(list) {
+    if (!list.length) return '<p class="muted small">Todavía no hay cambios anotados.</p>';
+    return list.slice().sort(function (x, y) { return y.ts - x.ts; }).slice(0, 60).map(function (x) {
+      var d = new Date(x.ts);
+      return '<div class="row" style="cursor:default"><div class="row-main"><div class="row-title" style="font-weight:500"><b>' + esc(C.userName(x.who)) + '</b> ' + esc(x.text) + '</div><div class="meta">' + d.toLocaleDateString('es-AR') + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + '</div></div></div>';
+    }).join('');
+  }
   function logAct(g, text) { g.activity = g.activity || []; g.activity.push({ id: C.uid(), ts: Date.now(), who: S.whoami, text: text }); }
   function names(ids) { return ids.map(C.userName).join(', '); }
   function diffExpense(old, o) {
@@ -1653,7 +1668,7 @@ details.person .list { background: var(--bg); }
     var body;
     if (isPdf && r.estimated) {
       d = d || { custom: e.custom || '', splitWith: e.splitWith || '' };
-      body = '<div class="alert warn">Esta cuota es una estimación: ' + r.cuota + ' de ' + r.total + ', por los meses que pasaron desde el último resumen cargado. El monto es el de la cuota anterior.</div><p class="meta mono">' + esc(e.desc) + '</p>' +
+      body = '<p class="meta">Para corregir la cuota o el monto, tocá "Cuota ' + r.cuota + ' de ' + r.total + '" o el importe en la lista.</p><p class="meta mono">' + esc(e.desc) + '</p>' +
         '<div class="form-grid"><label class="f wide">Descripción propia<input type="text" id="eCustom" value="' + esc(d.custom) + '" placeholder="Qué es (ej. cubrecama)"></label>' +
         '<label class="f wide">Dividir con (mitad y mitad)<select id="eSplit">' + contactOptions(d.splitWith, true) + '</select></label></div>';
     } else if (isPdf) {
@@ -1703,6 +1718,7 @@ details.person .list { background: var(--bg); }
             var amt = parseFloat(String(v.amount).replace(',', '.'));
             if (isNaN(amt)) { err.textContent = 'El monto no es válido.'; err.hidden = false; return; }
             var en = e.entries[r.entryIdx];
+            if (C.r2(amt) !== en.amount) logGen('cambió el monto de "' + r.desc + '" de ' + money(en.amount, r.currency) + ' a ' + money(C.r2(amt), r.currency));
             e.custom = v.custom.trim(); e.splitWith = v.splitWith || null; en.amount = C.r2(amt);
             if (e.kind === 'cuota') {
               var a = parseInt(v.cuota, 10), t = parseInt(v.total, 10);
@@ -1715,6 +1731,50 @@ details.person .list { background: var(--bg); }
             if (res.err) { err.textContent = res.err; err.hidden = false; return; }
             Object.assign(mm, res.m);
           }
+          save(); closeModal(); render(); toast('Cambios guardados');
+        };
+      });
+  }
+
+
+  /* ---------- corrección rápida: cuota y monto ---------- */
+  function quickModal(r) {
+    var isPdf = r.source === 'pdf';
+    var e = isPdf ? S.expenses.find(function (x) { return x.id === r.expenseId; }) : null;
+    var mm = !isPdf ? S.manual.find(function (x) { return x.id === r.manualId; }) : null;
+    var hasC = !!r.total;
+    openModal('<h2>' + esc(r.desc) + '</h2><p class="meta">Corregí lo que no coincida. Queda anotado en Actividad.</p>' +
+      '<div class="form-grid"><label class="f' + (hasC ? '' : ' wide') + '">Monto<input type="number" step="0.01" inputmode="decimal" id="qAmt" value="' + esc(r.amount) + '"></label>' +
+      (hasC ? '<label class="f">Cuota<input type="number" min="1" inputmode="numeric" id="qCuota" value="' + esc(r.cuota) + '"></label><label class="f">Total de cuotas<input type="number" min="1" inputmode="numeric" id="qTotal" value="' + esc(r.total) + '"></label>' : '') + '</div>' +
+      '<p class="err small" id="qErr" hidden></p><div class="btns"><button class="btn" id="qSave">Guardar</button><button class="btn ghost" id="qCancel">Cancelar</button></div>',
+      function (root) {
+        root.querySelector('#qCancel').onclick = closeModal;
+        root.querySelector('#qSave').onclick = function () {
+          var err = $('#qErr'), amt = parseFloat(String($('#qAmt').value).replace(',', '.'));
+          var ca = hasC ? parseInt($('#qCuota').value, 10) : null, tt = hasC ? parseInt($('#qTotal').value, 10) : null;
+          if (isNaN(amt) || amt < 0) { err.textContent = 'El monto no es válido.'; err.hidden = false; return; }
+          if (hasC && (!(ca > 0) || !(tt > 0) || ca > tt)) { err.textContent = 'Revisá las cuotas: la actual no puede pasar del total.'; err.hidden = false; return; }
+          amt = C.r2(amt);
+          var ch = [];
+          if (amt !== r.amount) ch.push('el monto de ' + money(r.amount, r.currency) + ' a ' + money(amt, r.currency));
+          if (hasC && ca !== r.cuota) ch.push('la cuota de ' + r.cuota + ' a ' + ca);
+          if (hasC && tt !== r.total) ch.push('el total de cuotas de ' + r.total + ' a ' + tt);
+          if (!ch.length) { closeModal(); return; }
+          var mon = cap(C.monthLabel(r.ym || ui.month));
+          if (isPdf && r.estimated) {
+            e.anchors = e.anchors || {}; e.anchors[r.ym] = { cuota: ca, total: tt, amount: amt };
+          } else if (isPdf) {
+            var en = e.entries[r.entryIdx]; en.amount = amt;
+            if (hasC) { en.cuota = ca; en.total = tt; if (r.entryIdx === e.entries.length - 1) { e.key.total = tt; e.status = ca >= tt ? 'terminado' : 'activo'; } }
+            if (e.groupId) {
+              var gg = gOf(e.groupId), gx = gg && gg.expenses.find(function (x) { return x.src === e.id + ':' + en.stmtId; });
+              if (gx && gx.amount !== amt) { logAct(gg, 'cambió el monto de "' + gx.desc + '" de ' + money(gx.amount, 'ARS') + ' a ' + money(amt, 'ARS') + ' (corrección desde el resumen de tarjeta)'); gx.amount = amt; }
+            }
+          } else {
+            mm.amount = amt;
+            if (hasC) { mm.cuotaActual = ca - C.monthDiff(mm.startMonth, r.ym || ui.month); mm.cuotaTotal = tt; }
+          }
+          logGen('cambió ' + ch.join(' y ') + ' de "' + r.desc + '" (' + mon + ')');
           save(); closeModal(); render(); toast('Cambios guardados');
         };
       });
@@ -1746,6 +1806,7 @@ details.person .list { background: var(--bg); }
     var ri = +el.getAttribute('data-ri'), ii = +el.getAttribute('data-ii');
     switch (act) {
       case 'tab': setTab(el.getAttribute('data-tab')); break;
+      case 'q-edit': ev.stopPropagation(); ev.preventDefault(); var qr = rowIndex[el.getAttribute('data-key')]; if (qr) quickModal(qr); break;
       case 'g-new': groupNewModal(); break;
       case 'g-open': ui.group = el.getAttribute('data-id'); ui.from = ui.tab; if (ui.tab !== 'grupos') setTab('grupos'); else { render(); window.scrollTo(0, 0); } break;
       case 'g-back': ui.group = null; ui.from = null; setTab('inicio'); break;
