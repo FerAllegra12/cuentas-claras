@@ -114,6 +114,10 @@ label.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .chk { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; min-height: 36px; }
 .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .row-amt.owe { color: var(--bad); }
+.sec-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 0 2px; }
+.sec-title h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.sec-title span { font-size: 13px; color: var(--muted); }
+.owe-t { color: var(--bad); }
 .chip-bad { background: var(--bad-soft); color: var(--bad); }
 .chip-good { background: var(--good-soft); color: var(--good); }
 
@@ -930,6 +934,9 @@ details.person .list { background: var(--bg); }
 
   /* ----- Inicio ----- */
   function viewInicio() {
+    return groupsHome() + '<div class="sec-title"><h2>Mis gastos personales</h2><span>' + esc(cap(C.monthLabel(ui.month))) + '</span></div>' + viewPersonal();
+  }
+  function viewPersonal() {
     var rows = C.entriesForMonth(S, ui.month), t = C.totals(rows);
     var stmts = S.statements.filter(function (s) { return s.payMonth === ui.month; });
     if (!rows.length && !stmts.length) {
@@ -1040,6 +1047,21 @@ details.person .list { background: var(--bg); }
     if (net < 0) return '<small>Tenés que pagar</small><b>' + money(-net, 'ARS') + '</b>';
     return '<small>Estás al día</small><b>' + money(0, 'ARS') + '</b>';
   }
+  function groupRowHTML(x) {
+    var b = C.groupBalances(x), me = b.nets[S.whoami] / 100;
+    var tot = x.expenses.reduce(function (s, e) { return s + e.amount; }, 0);
+    return '<button class="row" data-act="g-open" data-id="' + esc(x.id) + '"><div class="row-main"><div class="row-title">' + esc(x.name) + '</div><div class="meta">' + x.members.map(C.userName).join(', ') + ' · ' + x.expenses.length + (x.expenses.length === 1 ? ' gasto' : ' gastos') + ' · ' + money(tot, 'ARS') + '</div></div><div class="row-amt' + (me < 0 ? ' owe' : '') + '">' + (me === 0 ? 'Al día' : (me > 0 ? '+' : '−') + money(Math.abs(me), 'ARS')) + '</div></button>';
+  }
+  function groupsHome() {
+    var list = mine();
+    var h = '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Mis grupos</h2><button class="btn small" data-act="g-new">Nuevo grupo</button></div>';
+    if (!list.length) return h + '<p class="muted small" style="padding:0 16px 16px">Armá un grupo para los gastos compartidos: el hogar con tu pareja, la cancha con los pibes, un viaje. Cada uno carga lo suyo y la app dice quién le debe a quién.</p></section>';
+    var net = 0; list.forEach(function (g) { net += C.groupBalances(g).nets[S.whoami]; });
+    net = net / 100;
+    h += '<div class="list">' + list.map(groupRowHTML).join('') + '</div>';
+    h += '<div class="sec-h" style="padding:12px 16px 14px;border-top:1px solid var(--line)"><span>Saldo entre todos tus grupos</span><b class="num' + (net < 0 ? ' owe-t' : '') + '">' + (net === 0 ? 'Al día' : (net > 0 ? 'Te deben ' : 'Debés ') + money(Math.abs(net), 'ARS')) + '</b></div>';
+    return h + '</section>';
+  }
   function viewGrupos() {
     var g = ui.group && gOf(ui.group);
     if (g && g.members.indexOf(S.whoami) < 0) g = null;
@@ -1049,15 +1071,11 @@ details.person .list { background: var(--bg); }
       var list = mine();
       h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Mis grupos</h2><button class="btn small" data-act="g-new">Nuevo grupo</button></div>';
       if (!list.length) h += '<p class="muted small" style="padding:0 16px 16px">Todavía no estás en ningún grupo. Armá uno para un viaje, una juntada o lo que sea, e invitá a los demás por mail.</p>';
-      else h += '<div class="list">' + list.map(function (x) {
-        var b = C.groupBalances(x), me = b.nets[S.whoami] / 100;
-        var tot = x.expenses.reduce(function (s, e) { return s + e.amount; }, 0);
-        return '<button class="row" data-act="g-open" data-id="' + esc(x.id) + '"><div class="row-main"><div class="row-title">' + esc(x.name) + '</div><div class="meta">' + x.members.map(C.userName).join(', ') + ' · ' + x.expenses.length + (x.expenses.length === 1 ? ' gasto' : ' gastos') + ' · ' + money(tot, 'ARS') + '</div></div><div class="row-amt' + (me < 0 ? ' owe' : '') + '">' + (me === 0 ? 'Al día' : (me > 0 ? '+' : '−') + money(Math.abs(me), 'ARS')) + '</div></button>';
-      }).join('') + '</div>';
+      else h += '<div class="list">' + list.map(groupRowHTML).join('') + '</div>';
       return h + '</section>';
     }
     var b = C.groupBalances(g), me = b.nets[S.whoami], sug = C.settle(b.nets);
-    h += '<div class="btns"><button class="btn ghost small" data-act="g-back">← Mis grupos</button></div>';
+    h += '<div class="btns"><button class="btn ghost small" data-act="g-back">← ' + (ui.from === 'inicio' ? 'Inicio' : 'Mis grupos') + '</button></div>';
     h += '<section class="hero' + (me < 0 ? ' debt' : '') + '"><small>' + esc(g.name) + '</small>' + netLine(me / 100).replace('<small>', '<small style="font-size:15px;opacity:1">') + '</section>';
     h += '<div class="btns"><button class="btn" data-act="g-exp">Cargar gasto</button><button class="btn ghost" data-act="g-pay">Registrar pago</button><button class="btn ghost" data-act="g-inv">Invitar</button></div>';
     h += '<section class="card flat"><div class="sec-h" style="padding:16px 16px 12px"><h2>Quién le paga a quién</h2><span>para quedar a mano</span></div>';
@@ -1168,7 +1186,7 @@ details.person .list { background: var(--bg); }
       root.querySelector('#gnSave').onclick = function () {
         var n = $('#gnName').value.trim(); if (!n) { var e = $('#gnErr'); e.textContent = 'Ponele un nombre al grupo.'; e.hidden = false; return; }
         var g = { id: C.uid(), name: n, createdBy: S.whoami, members: [S.whoami], pending: [], expenses: [], payments: [] };
-        S.groups.push(g); ui.group = g.id; save(); closeModal(); render();
+        S.groups.push(g); ui.group = g.id; ui.from = ui.tab; save(); closeModal(); if (ui.tab !== 'grupos') setTab('grupos'); else render();
       };
     });
   }
@@ -1449,8 +1467,8 @@ details.person .list { background: var(--bg); }
     switch (act) {
       case 'tab': setTab(el.getAttribute('data-tab')); break;
       case 'g-new': groupNewModal(); break;
-      case 'g-open': ui.group = el.getAttribute('data-id'); render(); window.scrollTo(0, 0); break;
-      case 'g-back': ui.group = null; render(); break;
+      case 'g-open': ui.group = el.getAttribute('data-id'); ui.from = ui.tab; if (ui.tab !== 'grupos') setTab('grupos'); else { render(); window.scrollTo(0, 0); } break;
+      case 'g-back': ui.group = null; if (ui.from === 'inicio') { ui.from = null; setTab('inicio'); } else render(); break;
       case 'g-exp': if (gOf(ui.group)) groupExpenseModal(gOf(ui.group)); break;
       case 'g-pay': if (gOf(ui.group)) groupPaymentModal(gOf(ui.group)); break;
       case 'g-inv': if (gOf(ui.group)) groupInviteModal(gOf(ui.group)); break;
