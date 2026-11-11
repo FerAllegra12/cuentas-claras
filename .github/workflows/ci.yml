@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths: ["app/**", "supabase/**", ".github/workflows/ci.yml"]
+    paths: ["app/**", "supabase/**", ".github/**"]
   pull_request:
   workflow_dispatch:
 
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
