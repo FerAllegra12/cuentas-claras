@@ -37,12 +37,10 @@
 5. Guardar lo personal en Supabase (resúmenes, cuotas, gastos manuales) y migrar desde el prototipo.
 6. Web (Flutter web) y APK firmado.
 
-## Cómo conectar tu proyecto de Supabase
+## Conexión con Supabase
 
-1. Creá el proyecto en supabase.com (plan gratuito).
-2. En **SQL Editor**, pegá el contenido de `supabase/migrations/0001_init.sql` y ejecutalo.
-3. En **Project Settings → API**, copiá la **Project URL** y la clave **anon public**.
-4. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**, y creá `SUPABASE_URL` y `SUPABASE_ANON_KEY`.
-5. Para probar en tu computadora: `flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`
+El proyecto `cuentas-claras` ya está creado y con el esquema cargado (`0001_init.sql`). La URL y la clave **publishable** están en `app/lib/data/supabase_config.dart`: son públicas por diseño, la seguridad la dan las reglas (RLS) de la base.
 
-La clave anon es pública por diseño. **Nunca** pegues la clave `service_role` en la app ni en GitHub.
+**Nunca** pegues la clave `secret` / `service_role` en la app, en GitHub ni en un chat.
+
+Para cambiar de proyecto: `flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`

@@ -53,10 +53,7 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - name: Compilar APK
-        run: >
-          flutter build apk --release
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+        run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: cuentas-claras-apk
