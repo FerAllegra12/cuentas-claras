@@ -558,11 +558,10 @@ details.person .list { background: var(--bg); }
     if (!u || u.id === owner || contact.removed) return false;
     var me = USERS.find(function (x) { return x.id === owner; });
     var mutual = (state.contacts || []).some(function (x) { return (x.owner || 'u-fercho') === u.id && !x.removed && me && (x.email || '').trim().toLowerCase() === me.email; });
-    if (mutual) { delete contact.invited; return false; }
+    if (mutual) return false;
     state.friendReqs = state.friendReqs || [];
-    if (state.friendReqs.some(function (r) { return r.status === 'pending' && r.from === owner && r.to === u.id; })) { contact.invited = true; return false; }
+    if (state.friendReqs.some(function (r) { return r.status === 'pending' && r.from === owner && r.to === u.id; })) return false;
     state.friendReqs.push({ id: uid(), from: owner, to: u.id, status: 'pending', ts: Date.now() });
-    contact.invited = true;
     return true;
   }
   // arregla estados viejos: contactos que son usuarios y nunca tuvieron solicitud
@@ -575,6 +574,14 @@ details.person .list { background: var(--bg); }
       if (!any) requestFor(state, ct);
     });
     return state;
+  }
+  // estado de mi última solicitud hacia el usuario de este contacto: 'pending' | 'rejected' | null
+  function reqStatus(state, contact) {
+    var owner = contact.owner || 'u-fercho', mail = (contact.email || '').trim().toLowerCase();
+    var u = USERS.find(function (x) { return x.email === mail; }); if (!u) return null;
+    var mine = (state.friendReqs || []).filter(function (r) { return r.from === owner && r.to === u.id; }).sort(function (x, y) { return (y.ts || 0) - (x.ts || 0); })[0];
+    if (!mine) return null;
+    return mine.status === 'pending' || mine.status === 'rejected' ? mine.status : null;
   }
   function incomingReqs(state) { return (state.friendReqs || []).filter(function (r) { return r.status === 'pending' && r.to === state.whoami; }); }
   // gente que está en alguno de mis grupos y no tengo como contacto (ni invitada)
@@ -1002,7 +1009,7 @@ details.person .list { background: var(--bg); }
   }
 
   root.Core = {
-    userOfContact: userOfContact, requestFor: requestFor, migrateRequests: migrateRequests, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
+    userOfContact: userOfContact, requestFor: requestFor, reqStatus: reqStatus, migrateRequests: migrateRequests, activeContacts: activeContacts, myContacts: myContacts, incomingReqs: incomingReqs, groupStrangers: groupStrangers, transferAlias: transferAlias, sharedGroups: sharedGroups, personDebts: personDebts, personKey: personKey, personName: personName,
     groupEpochs: groupEpochs, groupRowsFor: groupRowsFor, myShareCents: myShareCents,
     USERS: USERS, userName: userName, splitCents: splitCents, groupBalances: groupBalances, settle: settle, addMonths: addMonths, monthDiff: monthDiff, projectedRows: projectedRows,
     LABELS: LABELS, num: num, r2: r2, uid: uid, clone: clone, cleanLines: cleanLines, detectIssuer: detectIssuer,
@@ -1097,8 +1104,7 @@ details.person .list { background: var(--bg); }
       '<h2>' + (existing ? 'Editar contacto' : 'Nuevo contacto') + '</h2>' +
       '<label class="f">Alias (como lo ves vos)<input type="text" id="cAlias" value="' + esc(existing ? existing.alias : '') + '" placeholder="Vale" maxlength="30"></label>' +
       '<label class="f">Mail<input type="email" id="cMail" value="' + esc(existing ? existing.email : '') + '" placeholder="vale@mail.com" autocapitalize="none"></label>' +
-      '<label class="f">Alias para transferirle (opcional)<input type="text" id="cTransfer" value="' + esc(existing ? (existing.transfer || '') : '') + '" placeholder="vale.mp" autocapitalize="none" maxlength="40"></label>' +
-      '<p class="small muted">Solo el alias, nunca el CBU ni el número de cuenta. Si la persona usa la app, su alias aparece solo.</p>' +
+      '<p class="small muted">El alias para transferirle lo carga cada persona desde su propia cuenta: nadie más puede tocarlo. Cuando use la app y sea tu contacto, lo vas a ver acá.</p>' +
       '<p class="err small" id="cErr" hidden></p>' +
       '<div class="btns"><button class="btn" id="cSave">Guardar</button><button class="btn ghost" id="cCancel">Cancelar</button></div>',
       function (root) {
@@ -1110,12 +1116,12 @@ details.person .list { background: var(--bg); }
           else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) msg = 'Revisá el mail, no parece válido.';
           else if (C.myContacts(S).some(function (c) { return !c.removed && c.alias.toLowerCase() === alias.toLowerCase() && (!existing || c.id !== existing.id); })) msg = 'Ya tenés un contacto con ese alias.';
           if (msg) { err.textContent = msg; err.hidden = false; return; }
-          var c, tr = $('#cTransfer').value.trim();
-          if (existing) { c = S.contacts.find(function (x) { return x.id === existing.id; }); c.alias = alias; c.email = mail; c.transfer = tr; }
+          var c;
+          if (existing) { c = S.contacts.find(function (x) { return x.id === existing.id; }); c.alias = alias; c.email = mail; }
           else {
             var old = C.myContacts(S).find(function (x) { return x.removed && x.email.trim().toLowerCase() === mail.toLowerCase(); });
-            if (old) { c = old; c.alias = alias; c.transfer = tr; delete c.removed; logGen('volvió a agregar a ' + alias + ' como contacto'); }
-            else { c = { id: C.uid(), owner: S.whoami, alias: alias, email: mail, transfer: tr }; S.contacts.push(c); }
+            if (old) { c = old; c.alias = alias; delete c.removed; logGen('volvió a agregar a ' + alias + ' como contacto'); }
+            else { c = { id: C.uid(), owner: S.whoami, alias: alias, email: mail }; S.contacts.push(c); }
           }
           var sent = C.requestFor(S, c); if (sent) { logGen('mandó solicitud de contacto a ' + c.alias); toast('Le mandamos la solicitud a ' + c.alias); }
           S.demo = false; save(); closeModal(); if (done) done(c); else render();
@@ -1304,7 +1310,7 @@ details.person .list { background: var(--bg); }
 
   /* ----- Contactos ----- */
   function copyBtn(v) { return v ? '<button class="btn ghost small" data-act="copy-alias" data-v="' + esc(v) + '">Copiar alias</button>' : ''; }
-  function contactAlias(c) { var u = C.userOfContact(S, c.id); return (u && C.transferAlias(S, u.id)) || c.transfer || ''; }
+  function contactAlias(c) { var u = C.userOfContact(S, c.id); return (u && C.transferAlias(S, u.id)) || ''; }
   function viewContactos() {
     var act = C.activeContacts(S), gone = C.myContacts(S).filter(function (x) { return x.removed; }), str = C.groupStrangers(S), reqs = C.incomingReqs(S);
     var h = '';
@@ -1321,7 +1327,7 @@ details.person .list { background: var(--bg); }
     function nOf(c) { return S.expenses.filter(function (e) { return e.splitWith === c.id; }).length + S.manual.filter(function (m) { return m.splitWith === c.id; }).length; }
     act.forEach(function (c) {
       var n = nOf(c), al = contactAlias(c);
-      h += '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + (c.invited ? ' <span class="chip chip-warn">Invitación pendiente</span>' : '') + '</div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div>' + (al ? '<div class="meta">Alias para transferir: <b style="color:var(--fg)">' + esc(al) + '</b></div>' : '') + '</div><div class="btns" style="width:100%">' + copyBtn(al) + '<button class="btn ghost small" data-act="edit-contact" data-id="' + esc(c.id) + '">Editar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>';
+      h += '<div class="row" style="cursor:default;align-items:center;flex-wrap:wrap"><div class="row-main" style="gap:2px"><div class="row-title">' + esc(c.alias) + (C.reqStatus(S, c) === 'pending' ? ' <span class="chip chip-warn">Invitación pendiente</span>' : (C.reqStatus(S, c) === 'rejected' ? ' <span class="chip chip-bad">Rechazó tu solicitud</span>' : '')) + '</div><div class="meta">' + esc(c.email) + ' · ' + n + (n === 1 ? ' gasto dividido' : ' gastos divididos') + '</div>' + (al ? '<div class="meta">Alias para transferir: <b style="color:var(--fg)">' + esc(al) + '</b></div>' : '') + '</div><div class="btns" style="width:100%">' + copyBtn(al) + '<button class="btn ghost small" data-act="edit-contact" data-id="' + esc(c.id) + '">Editar</button><button class="btn danger small" data-act="del-contact" data-id="' + esc(c.id) + '">Quitar</button></div></div>';
     });
     h += '</section>';
     if (gone.length) {
@@ -1946,7 +1952,7 @@ details.person .list { background: var(--bg); }
       case 'inv-contact':
         var iu = C.USERS.find(function (x) { return x.id === el.getAttribute('data-id'); }); if (!iu) break;
         var prev = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === iu.email; });
-        if (prev) { delete prev.removed; prev.invited = true; } else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: iu.name, email: iu.email, transfer: '', invited: true });
+        if (prev) { delete prev.removed; } else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: iu.name, email: iu.email });
         S.friendReqs = S.friendReqs || []; S.friendReqs.push({ id: C.uid(), from: S.whoami, to: iu.id, status: 'pending', ts: Date.now() });
         logGen('invitó a ' + iu.name + ' a ser contacto'); save(); toast('Invitación enviada a ' + iu.name); render(); break;
       case 'req-ok': case 'req-no':
@@ -1956,11 +1962,11 @@ details.person .list { background: var(--bg); }
         if (act === 'req-ok') {
           rq.status = 'accepted';
           var mine2 = C.myContacts(S).find(function (x) { return x.email.trim().toLowerCase() === fu.email; });
-          if (mine2) delete mine2.removed; else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: fu.name, email: fu.email, transfer: '' });
-          if (theirs) { delete theirs.invited; delete theirs.removed; }
+          if (mine2) delete mine2.removed; else S.contacts.push({ id: C.uid(), owner: S.whoami, alias: fu.name, email: fu.email });
+          if (theirs) delete theirs.removed;
           logGen('aceptó la solicitud de ' + fu.name + ': ahora son contactos'); toast('Ahora ' + fu.name + ' es tu contacto');
         } else {
-          rq.status = 'rejected'; if (theirs) { delete theirs.invited; theirs.removed = Date.now(); }
+          rq.status = 'rejected';
           logGen('rechazó la solicitud de ' + fu.name); toast('Solicitud rechazada');
         }
         save(); render(); break;
