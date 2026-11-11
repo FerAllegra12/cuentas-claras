@@ -23,8 +23,8 @@ void main() {
   });
 
   test('el plan terminado o un mes anterior devuelven null', () {
-    expect(projectCuota(ultima, '2027-06'), isNotNull); // cuota 12 de 12
-    expect(projectCuota(ultima, '2027-07'), isNull);
+    expect(projectCuota(ultima, '2027-05')!.cuota, 12); // última cuota: 12 de 12
+    expect(projectCuota(ultima, '2027-06'), isNull); // la 13 no existe
     expect(projectCuota(ultima, '2026-09'), isNull);
   });
 
