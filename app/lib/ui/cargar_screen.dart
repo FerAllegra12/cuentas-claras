@@ -26,7 +26,7 @@ class _CargarScreenState extends State<CargarScreen> {
       _leyendo = true;
     });
     try {
-      final pick = await FilePicker.platform.pickFiles(
+      final pick = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['pdf'],
         withData: true,
