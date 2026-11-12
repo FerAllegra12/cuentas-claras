@@ -12,6 +12,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   final _name = TextEditingController();
+  final _pass2 = TextEditingController();
+  bool _ver = false;
   bool _registro = false;
   bool _cargando = false;
   String? _error;
@@ -21,10 +23,19 @@ class _LoginScreenState extends State<LoginScreen> {
     _email.dispose();
     _pass.dispose();
     _name.dispose();
+    _pass2.dispose();
     super.dispose();
   }
 
   Future<void> _enviar() async {
+    if (_registro && _pass.text != _pass2.text) {
+      setState(() => _error = 'Las contraseñas no coinciden.');
+      return;
+    }
+    if (_registro && _pass.text.length < 6) {
+      setState(() => _error = 'La contraseña tiene que tener al menos 6 caracteres.');
+      return;
+    }
     setState(() {
       _cargando = true;
       _error = null;
@@ -41,7 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await auth.signInWithPassword(email: _email.text.trim(), password: _pass.text);
       }
     } on AuthException catch (e) {
-      setState(() => _error = e.message);
+      final m = e.message;
+      setState(() => _error = (m.contains('host lookup') || m.contains('SocketException'))
+          ? 'No pudimos conectar. Revisá tu conexión.'
+          : m);
     } catch (_) {
       setState(() => _error = 'No pudimos conectar. Revisá tu conexión.');
     } finally {
@@ -76,9 +90,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _pass,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Contraseña'),
+                    obscureText: !_ver,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      suffixIcon: IconButton(
+                        icon: Icon(_ver ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _ver = !_ver),
+                      ),
+                    ),
                   ),
+                  if (_registro) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _pass2,
+                      obscureText: !_ver,
+                      decoration: const InputDecoration(labelText: 'Repetir contraseña'),
+                    ),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
