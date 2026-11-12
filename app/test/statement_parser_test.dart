@@ -100,7 +100,7 @@ void main() {
   });
 
   test('Si el total no cierra, avisa', () {
-    final malo = [...visa]..removeAt(7); // falta una línea de consumo
+    final malo = [...visa]..removeAt(6); // falta un consumo en pesos
     final r = parseStatement(malo);
     expect(r.ok, false);
     expect(r.problems.any((p) => p.contains('pesos')), true);
