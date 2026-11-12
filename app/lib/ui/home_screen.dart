@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'cargar_screen.dart';
+
 /// Pantalla provisoria: confirma que el login y la base andan.
 /// Las pestañas reales (Inicio, Cargar, Gastos, Grupos, Contactos) se arman sobre esto.
 class HomeScreen extends StatelessWidget {
@@ -32,7 +34,19 @@ class HomeScreen extends StatelessWidget {
           builder: (context, snap) {
             if (snap.hasError) return Text('Error leyendo tu perfil: ${snap.error}');
             if (!snap.hasData) return const CircularProgressIndicator();
-            return Text('Hola, ${snap.data}. La app está conectada.');
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Hola, ${snap.data}.', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Cargar resumen'),
+                  onPressed: () => Navigator.of(context)
+                      .push(MaterialPageRoute<void>(builder: (_) => const CargarScreen())),
+                ),
+              ],
+            );
           },
         ),
       ),
