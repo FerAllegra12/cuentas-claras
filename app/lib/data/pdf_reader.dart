@@ -2,34 +2,64 @@ import 'dart:typed_data';
 
 import 'package:pdfrx/pdfrx.dart';
 
-import '../core/statement_parser.dart';
-
 /// Saca las líneas de texto de un PDF, página por página, sin internet ni IA.
-/// Usa PDFium (el mismo motor de Chrome), que lee casi cualquier PDF.
+/// Usa PDFium (el motor de Chrome). Por cada letra la librería da su posición,
+/// y acá se arman las líneas juntando las letras que están a la misma altura.
 Future<List<String>> pdfToLines(Uint8List bytes) async {
   final doc = await PdfDocument.openData(bytes);
   try {
     final out = <String>[];
     for (final page in doc.pages) {
-      // dynamic a propósito: así no depende de si la librería devuelve null o no.
-      final dynamic text = await page.loadText();
-      final items = <TextItem>[];
-      final dynamic frags = text?.fragments;
-      if (frags != null) {
-        for (final dynamic f in frags) {
-          final dynamic b = f.bounds; // coordenadas PDF: y crece hacia arriba
-          final left = (b.left as num).toDouble();
-          final right = (b.right as num).toDouble();
-          final top = (b.top as num).toDouble();
-          final bottom = (b.bottom as num).toDouble();
-          final y = top > bottom ? top : bottom;
-          items.add(TextItem(f.text as String, left, y, right - left));
+      final raw = await page.loadText();
+      if (raw == null) continue;
+      final text = raw.fullText;
+      final rects = raw.charRects;
+      final n = text.length < rects.length ? text.length : rects.length;
+
+      final chars = <_Ch>[];
+      for (var i = 0; i < n; i++) {
+        final c = text[i];
+        if (c == '\n' || c == '\r') continue;
+        final r = rects[i];
+        chars.add(_Ch(c, r.left, r.right, (r.top + r.bottom) / 2));
+      }
+      // De arriba hacia abajo (en PDF la y crece hacia arriba), y de izquierda a derecha.
+      chars.sort((a, b) {
+        final c = b.y.compareTo(a.y);
+        return c != 0 ? c : a.left.compareTo(b.left);
+      });
+      final groups = <List<_Ch>>[];
+      double? gy;
+      for (final ch in chars) {
+        if (gy != null && (gy - ch.y).abs() <= 3) {
+          groups.last.add(ch);
+        } else {
+          groups.add([ch]);
+          gy = ch.y;
         }
       }
-      out.addAll(linesFromItems(items));
+      for (final g in groups) {
+        g.sort((a, b) => a.left.compareTo(b.left));
+        final b = StringBuffer();
+        _Ch? prev;
+        for (final ch in g) {
+          if (prev != null && ch.c != ' ' && prev.c != ' ' && ch.left - prev.right > 1.2) b.write(' ');
+          b.write(ch.c);
+          prev = ch;
+        }
+        out.add(b.toString());
+      }
     }
     return out;
   } finally {
     await doc.dispose();
   }
+}
+
+class _Ch {
+  _Ch(this.c, this.left, this.right, this.y);
+  final String c;
+  final double left;
+  final double right;
+  final double y;
 }
