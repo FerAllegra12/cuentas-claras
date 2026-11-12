@@ -26,18 +26,15 @@ class _CargarScreenState extends State<CargarScreen> {
       _leyendo = true;
     });
     try {
-      final pick = await FilePicker.pickFiles(
+      final f = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: const ['pdf'],
-        withData: true,
       );
-      if (pick == null || pick.files.isEmpty) {
+      if (f == null) {
         setState(() => _leyendo = false);
         return;
       }
-      final f = pick.files.first;
-      final bytes = f.bytes;
-      if (bytes == null) throw 'No pude abrir el archivo.';
+      final bytes = await f.readAsBytes();
       final lines = pdfToLines(bytes);
       final res = parseStatement(lines);
       setState(() {
