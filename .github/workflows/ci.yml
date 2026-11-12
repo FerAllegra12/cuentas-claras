@@ -49,6 +49,11 @@ jobs:
         run: |
           flutter create --platforms=android --org com.fercho --project-name cuentas_claras .
           rm -f test/widget_test.dart
+          # Permiso de internet (flutter create solo lo pone en debug, y el release salia sin red)
+          if ! grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml; then
+            sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          fi
+          grep -n 'INTERNET' android/app/src/main/AndroidManifest.xml
       - run: bash ../.github/ci_run.sh flutter pub get
       - run: bash ../.github/ci_run.sh flutter analyze --no-fatal-infos
       - run: bash ../.github/ci_run.sh flutter test
