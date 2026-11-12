@@ -35,7 +35,7 @@ class _CargarScreenState extends State<CargarScreen> {
         return;
       }
       final bytes = await f.readAsBytes();
-      final lines = pdfToLines(bytes);
+      final lines = await pdfToLines(bytes);
       final res = parseStatement(lines);
       setState(() {
         _res = res;
